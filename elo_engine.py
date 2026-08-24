@@ -10,7 +10,7 @@ import sqlite3
 
 INITIAL_RATING = 1500
 K_FACTOR = 20  # how much one match result shifts a team's rating
-HOME_ADVANTAGE = 65  # Elo points added to the home team's rating before computing expected outcome
+HOME_ADVANTAGE = 50  # Elo points added to the home team's rating before computing expected outcome
 
 
 def expected_score(rating_a, rating_b):

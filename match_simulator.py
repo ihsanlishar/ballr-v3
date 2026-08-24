@@ -16,7 +16,7 @@ GOAL_VARIANCE = 1.3
 # Controls how often simulated matches land as exact draws. Tuned
 # during backtesting on Day 2 — this default is a starting point,
 # not yet calibrated against real results.
-DRAW_DAMPENING = 0.18
+DRAW_DAMPENING = 0.55
 
 
 def simulate_match(home_rating, away_rating, n_simulations=50000):
