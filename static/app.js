@@ -35,6 +35,37 @@ function fmtDate(iso) {
   });
 }
 
+function scorelineLabel(scoreline) {
+  return `${scoreline.home_goals}–${scoreline.away_goals}`;
+}
+
+function buildScoreHeatmap(p) {
+  const maxValue = Math.max(...p.score_matrix.flat());
+  const headings = Array.from({ length: p.max_display_goals + 1 }, (_, goal) => `<th>${goal}</th>`).join('');
+  const rows = p.score_matrix.map((row, homeGoals) => {
+    const cells = row.map((probability, awayGoals) => {
+      const intensity = Math.max(0.08, probability / maxValue);
+      return `<td style="--heat:${intensity}" title="${homeGoals}–${awayGoals}: ${probability}%">${probability.toFixed(1)}%</td>`;
+    }).join('');
+    return `<tr><th>${homeGoals}</th>${cells}</tr>`;
+  }).join('');
+
+  return `
+    <details class="score-details">
+      <summary>Scoreline probabilities <span>model-derived</span></summary>
+      <div class="score-details-body">
+        <div class="score-axis"><span>Home goals ↓</span><span>Away goals →</span></div>
+        <div class="score-grid-wrap">
+          <table class="score-grid">
+            <thead><tr><th></th>${headings}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="score-note">Cells show exact-score probability. The 0–${p.max_display_goals} grid covers ${p.shown_probability}% of the model distribution.</p>
+      </div>
+    </details>`;
+}
+
 function buildCard(p, index) {
   const card = document.createElement('div');
   card.className = 'match-card card-enter';
@@ -47,6 +78,9 @@ function buildCard(p, index) {
   });
 
   const uncertain = !p.home_rating_known || !p.away_rating_known;
+  const topScores = p.top_scorelines.map((scoreline) =>
+    `<span><b>${scorelineLabel(scoreline)}</b> ${scoreline.probability.toFixed(1)}%</span>`
+  ).join('');
 
   card.innerHTML = `
     <div class="card-top">
@@ -78,6 +112,12 @@ function buildCard(p, index) {
         <span class="legend-value">${p.away_pct}%</span>
       </div>
     </div>
+    <div class="metrics-row">
+      <div><span>Model xG</span><b>${p.home_xg} – ${p.away_xg}</b></div>
+      <div><span>Elo</span><b>${p.home_rating} – ${p.away_rating}</b></div>
+      <div class="top-scores"><span>Likely scores</span><div>${topScores}</div></div>
+    </div>
+    ${buildScoreHeatmap(p)}
     <div class="date-row">${uncertain ? 'One or both teams have limited match history this season — prediction is less reliable.' : ''}</div>
   `;
 

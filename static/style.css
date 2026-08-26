@@ -96,6 +96,26 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
 .legend-swatch { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
 .legend-name { font-size: 0.85rem; font-weight: 600; color: var(--text); white-space: nowrap; }
 .legend-value { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-muted); min-width: 40px; }
+.metrics-row { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--card-border); }
+.metrics-row > div { display: flex; align-items: baseline; gap: 7px; }
+.metrics-row span { color: var(--text-muted); font-size: 0.7rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.metrics-row b { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
+.metrics-row .top-scores { align-items: flex-start; }
+.top-scores div { display: flex; gap: 8px; flex-wrap: wrap; }
+.top-scores b { color: var(--text); }
+.score-details { margin-top: 16px; border: 1px solid var(--card-border); border-radius: 8px; background: rgba(255,255,255,0.018); }
+.score-details summary { cursor: pointer; padding: 10px 12px; color: var(--text); font-size: 0.82rem; font-weight: 600; list-style: none; }
+.score-details summary::-webkit-details-marker { display: none; }
+.score-details summary::before { content: '+'; display: inline-block; width: 15px; color: var(--home); }
+.score-details[open] summary::before { content: '−'; }
+.score-details summary span { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.68rem; font-weight: 400; margin-left: 5px; }
+.score-details-body { border-top: 1px solid var(--card-border); padding: 12px; }
+.score-axis { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.66rem; }
+.score-grid-wrap { overflow-x: auto; }
+.score-grid { width: 100%; min-width: 430px; border-collapse: separate; border-spacing: 3px; table-layout: fixed; font-family: var(--font-mono); }
+.score-grid th { color: var(--text-muted); font-size: 0.7rem; font-weight: 500; }
+.score-grid td { background: color-mix(in srgb, var(--away) calc(var(--heat) * 68%), transparent); border-radius: 3px; color: var(--text); font-size: 0.67rem; padding: 7px 2px; text-align: center; }
+.score-note { color: var(--text-muted); font-size: 0.7rem; line-height: 1.4; margin: 9px 0 0; }
 .date-row { margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
 .footer { margin-top: 32px; color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); }
 @media (max-width: 560px) {

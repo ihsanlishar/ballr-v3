@@ -51,6 +51,7 @@
       <p>Each card is one upcoming <strong>match</strong>. The bar shows Ballr's predicted Win/Draw/Win split.</p>
       <ul>
         <li><strong>Model</strong> — an Elo rating system built from each team's real results this season, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
+        <li><strong>Scorelines and xG</strong> — a separate Poisson projection converts the same Elo strength signal into expected goals and exact-score probabilities. It is a model projection, not event-level xG.</li>
         <li><strong>Home advantage</strong> is factored in, based on real backtested evidence, not just assumed.</li>
         <li><strong>Known limitation:</strong> ratings are based purely on this season's match results so far — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
       </ul>

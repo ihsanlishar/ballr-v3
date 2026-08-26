@@ -6,7 +6,7 @@ no historical rating (newly promoted clubs) by falling back to the
 default starting rating rather than crashing.
 """
 from elo_engine import build_current_ratings, INITIAL_RATING
-from match_simulator import simulate_match
+from match_simulator import score_projection, simulate_match
 from fixtures import get_upcoming_fixtures
 
 
@@ -32,6 +32,7 @@ def get_predictions(league_key, limit=20):
         away_rating = ratings.get(away_team, INITIAL_RATING)
 
         home_pct, draw_pct, away_pct = simulate_match(home_rating, away_rating)
+        projection = score_projection(home_rating, away_rating)
 
         predictions.append({
             "home_team": home_team,
@@ -42,6 +43,9 @@ def get_predictions(league_key, limit=20):
             "away_pct": away_pct,
             "home_rating_known": home_team in ratings,
             "away_rating_known": away_team in ratings,
+            "home_rating": round(home_rating),
+            "away_rating": round(away_rating),
+            **projection,
         })
 
     return predictions
