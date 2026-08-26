@@ -1,0 +1,71 @@
+<!-- static/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ballr — Match Predictions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loader" class="loader">
+  <div class="loader-inner">
+    <div class="loader-wordmark">BALLR</div>
+    <div class="scan-track"><div class="scan-line"></div></div>
+    <p class="loader-caption">Running the simulation…</p>
+  </div>
+</div>
+
+<div class="app">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>Ballr</h1>
+      </div>
+      <div class="controls">
+        <label class="control">
+          <span>League</span>
+          <select id="league-select"></select>
+        </label>
+      </div>
+    </div>
+    <p class="subtitle">Elo + Monte Carlo predictions for upcoming fixtures</p>
+
+    <div class="stats-strip">
+      <div class="stat"><span class="stat-value" id="stat-tracked">0</span><span class="stat-label">upcoming fixtures</span></div>
+    </div>
+  </header>
+
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder="Filter by team…" autocomplete="off">
+  </div>
+
+  <details class="how-to">
+    <summary>How to read this</summary>
+    <div class="how-to-body">
+      <p>Each card is one upcoming <strong>match</strong>. The bar shows Ballr's predicted Win/Draw/Win split.</p>
+      <ul>
+        <li><strong>Model</strong> — an Elo rating system built from each team's real results this season, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
+        <li><strong>Home advantage</strong> is factored in, based on real backtested evidence, not just assumed.</li>
+        <li><strong>Known limitation:</strong> ratings are based purely on this season's match results so far — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
+      </ul>
+      <p class="disclaimer">Not betting advice — a model's opinion, nothing more. Backtested Brier score (lower is better, ~0.667 is random guessing): ~0.61-0.63 on last season's results.</p>
+    </div>
+  </details>
+
+  <div class="card-list" id="list-predictions"></div>
+  <p class="empty-note" id="empty-predictions" hidden>No upcoming fixtures found for this league yet.</p>
+
+  <footer class="footer">
+    <span id="last-refreshed"></span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
