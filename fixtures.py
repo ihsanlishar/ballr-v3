@@ -6,9 +6,12 @@ regularly as the season progresses, not just once.
 """
 import requests
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_URL = "https://api.football-data.org/v4"
-API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY", "08f4fa177c9b4ba084b75ed187f88e4b")
+API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY")
 HEADERS = {"X-Auth-Token": API_KEY}
 
 COMPETITIONS = {
@@ -24,6 +27,12 @@ def get_upcoming_fixtures(league_key, limit=20):
     {home_team, away_team, utc_date}. Only returns matches that
     haven't been played yet (status=SCHEDULED or TIMED).
     """
+    if not API_KEY:
+        raise RuntimeError(
+            "FOOTBALL_DATA_API_KEY is not set. Create a .env file with "
+            "FOOTBALL_DATA_API_KEY=<your key> in the project root."
+        )
+
     comp_code = COMPETITIONS.get(league_key)
     if comp_code is None:
         return []

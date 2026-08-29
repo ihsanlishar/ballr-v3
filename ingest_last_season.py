@@ -8,8 +8,12 @@ after the fact, so there's no need to re-run this regularly.
 import requests
 import sqlite3
 import time
+import os
+from dotenv import load_dotenv
 
-API_KEY = "08f4fa177c9b4ba084b75ed187f88e4b"
+load_dotenv()
+
+API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY")
 BASE_URL = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": API_KEY}
 
@@ -19,7 +23,7 @@ COMPETITIONS = {
     "CL": "champions_league",
 }
 
-SEASON = 2025  # 2025-26 season
+SEASON = 2025
 
 
 def ensure_schema(db_path="ballr.db"):
@@ -43,6 +47,12 @@ def ensure_schema(db_path="ballr.db"):
 
 
 def fetch_and_store(comp_code, league_key, db_path="ballr.db"):
+    if not API_KEY:
+        raise RuntimeError(
+            "FOOTBALL_DATA_API_KEY is not set. Create a .env file with "
+            "FOOTBALL_DATA_API_KEY=<your key> in the project root."
+        )
+
     url = f"{BASE_URL}/competitions/{comp_code}/matches"
     params = {"season": SEASON}
     response = requests.get(url, headers=HEADERS, params=params)
@@ -85,6 +95,6 @@ if __name__ == "__main__":
         print(f"Fetching {league_key} ({comp_code})...")
         count = fetch_and_store(comp_code, league_key)
         print(f"  Stored {count} matches for {league_key}")
-        time.sleep(6)  # comfortable buffer, still only 3 calls total
+        time.sleep(6)
 
     print("\nDone — all historical data cached locally.")

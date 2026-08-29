@@ -6,8 +6,50 @@ no historical rating (newly promoted clubs) by falling back to the
 default starting rating rather than crashing.
 """
 from elo_engine import build_current_ratings, INITIAL_RATING
-from match_simulator import score_projection, simulate_match
+from match_simulator import build_goal_profiles, score_projection, simulate_match
 from fixtures import get_upcoming_fixtures
+
+
+def build_prediction(league_key, fixture, ratings, goal_profiles):
+    """Enrich one fixture with outcome, scoreline, and team-form data."""
+    home_team = fixture["home_team"]
+    away_team = fixture["away_team"]
+
+    home_rating = ratings.get(home_team, INITIAL_RATING)
+    away_rating = ratings.get(away_team, INITIAL_RATING)
+    home_pct, draw_pct, away_pct = simulate_match(home_rating, away_rating)
+    projection = score_projection(
+        home_rating, away_rating, goal_profiles, home_team, away_team
+    )
+    default_stats = goal_profiles["default_stats"]
+    home_stats = goal_profiles["teams"].get(home_team, default_stats)
+    away_stats = goal_profiles["teams"].get(away_team, default_stats)
+
+    return {
+        **fixture,
+        "league": league_key,
+        "home_pct": home_pct,
+        "draw_pct": draw_pct,
+        "away_pct": away_pct,
+        "home_rating_known": home_team in ratings,
+        "away_rating_known": away_team in ratings,
+        "home_rating": round(home_rating),
+        "away_rating": round(away_rating),
+        "home_form": home_stats["form_string"] or "—",
+        "away_form": away_stats["form_string"] or "—",
+        **projection,
+    }
+
+
+def get_match_prediction(league_key, home_team, away_team, utc_date=None):
+    """Build a prediction for one fixture without refetching the schedule."""
+    ratings = build_current_ratings(league_key)
+    goal_profiles = build_goal_profiles(league_key, ratings)
+    return build_prediction(league_key, {
+        "home_team": home_team,
+        "away_team": away_team,
+        "utc_date": utc_date,
+    }, ratings, goal_profiles)
 
 
 def get_predictions(league_key, limit=20):
@@ -16,39 +58,10 @@ def get_predictions(league_key, limit=20):
     predicted Win/Draw/Win probabilities.
     """
     ratings = build_current_ratings(league_key)
+    goal_profiles = build_goal_profiles(league_key, ratings)
     fixtures = get_upcoming_fixtures(league_key, limit=limit)
 
-    predictions = []
-
-    for f in fixtures:
-        home_team = f["home_team"]
-        away_team = f["away_team"]
-
-        # Teams with no rating yet (newly promoted, or first-ever
-        # match in our dataset) start at the same INITIAL_RATING every
-        # other team started at — a fair, neutral assumption rather
-        # than a crash or a silently wrong default.
-        home_rating = ratings.get(home_team, INITIAL_RATING)
-        away_rating = ratings.get(away_team, INITIAL_RATING)
-
-        home_pct, draw_pct, away_pct = simulate_match(home_rating, away_rating)
-        projection = score_projection(home_rating, away_rating)
-
-        predictions.append({
-            "home_team": home_team,
-            "away_team": away_team,
-            "utc_date": f["utc_date"],
-            "home_pct": home_pct,
-            "draw_pct": draw_pct,
-            "away_pct": away_pct,
-            "home_rating_known": home_team in ratings,
-            "away_rating_known": away_team in ratings,
-            "home_rating": round(home_rating),
-            "away_rating": round(away_rating),
-            **projection,
-        })
-
-    return predictions
+    return [build_prediction(league_key, fixture, ratings, goal_profiles) for fixture in fixtures]
 
 
 if __name__ == "__main__":

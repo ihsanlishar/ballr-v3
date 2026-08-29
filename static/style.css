@@ -73,6 +73,7 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .match-card:hover { border-color: var(--card-border-hover); background: var(--card-bg-hover); transform: translateY(-2px); box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4); }
+.match-card:focus-visible { outline: 2px solid var(--away); outline-offset: 3px; }
 .match-card.card-enter { opacity: 0; transform: translateY(10px); animation: card-in 0.4s ease forwards; }
 @keyframes card-in { to { opacity: 1; transform: translateY(0); } }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
@@ -103,6 +104,8 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
 .metrics-row .top-scores { align-items: flex-start; }
 .top-scores div { display: flex; gap: 8px; flex-wrap: wrap; }
 .top-scores b { color: var(--text); }
+.card-link { color: var(--away); font-family: var(--font-mono); font-size: 0.76rem; margin-top: 16px; }
+.card-link span { font-size: 1rem; margin-left: 3px; }
 .score-details { margin-top: 16px; border: 1px solid var(--card-border); border-radius: 8px; background: rgba(255,255,255,0.018); }
 .score-details summary { cursor: pointer; padding: 10px 12px; color: var(--text); font-size: 0.82rem; font-weight: 600; list-style: none; }
 .score-details summary::-webkit-details-marker { display: none; }
@@ -118,10 +121,51 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
 .score-note { color: var(--text-muted); font-size: 0.7rem; line-height: 1.4; margin: 9px 0 0; }
 .date-row { margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
 .footer { margin-top: 32px; color: var(--text-muted); font-size: 0.75rem; font-family: var(--font-mono); }
+.match-page { max-width: 980px; margin: 0 auto; padding: 32px 20px 60px; }
+.back-link { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; text-decoration: none; }
+.back-link:hover { color: var(--text); }
+.loading-copy, .error-copy { color: var(--text-muted); font-family: var(--font-mono); margin-top: 64px; }
+.error-copy a { color: var(--away); }
+.match-hero { padding: 44px 0 28px; }
+.eyebrow { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; margin: 0 0 8px; text-transform: uppercase; }
+.match-hero h1 { align-items: center; display: flex; flex-wrap: wrap; font-family: var(--font-display); font-size: clamp(2rem, 6vw, 4.4rem); gap: 14px; letter-spacing: -0.04em; line-height: 1; margin: 0; }
+.match-hero h1 em { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.9rem; font-style: normal; letter-spacing: 0; }
+.match-date { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85rem; margin: 16px 0 0; }
+.detail-warning { background: rgba(232,163,61,0.12); border: 1px solid rgba(232,163,61,0.3); border-radius: 7px; color: var(--warn); font-size: 0.82rem; margin: 20px 0 0; padding: 10px 12px; }
+.detail-panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); margin-top: 16px; padding: 24px; }
+.section-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 20px; }
+.section-heading h2, .form-panel h2 { font-family: var(--font-display); font-size: 1.3rem; margin: 0; }
+.section-heading > p { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; margin: 3px 0 0; text-align: right; }
+.large-prob-bar { display: flex; height: 42px; overflow: hidden; border-radius: 8px; }
+.outcome-values { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin-top: 14px; }
+.outcome-values div:nth-child(2) { text-align: center; }
+.outcome-values div:last-child { text-align: right; }
+.outcome-values span, .model-metrics span { color: var(--text-muted); display: block; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; }
+.outcome-values b { display: block; font-family: var(--font-mono); font-size: 1.25rem; font-weight: 500; margin-top: 4px; }
+.detail-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
+.form-panel { margin-top: 16px; }
+.form-panel > p:last-child { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; margin: 14px 0 0; }
+.form-badges { display: flex; gap: 7px; margin-top: 18px; }
+.form-badge { border-radius: 5px; color: #07110c; font-family: var(--font-mono); font-size: 0.76rem; font-weight: 600; padding: 5px 8px; }
+.form-badge.w { background: var(--home); }.form-badge.d { background: var(--draw); color: #21152d; }.form-badge.l { background: var(--away); color: #0a1735; }
+.form-empty { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; }
+.model-metrics { display: grid; gap: 20px; grid-template-columns: 1fr 1fr 2fr; }
+.model-metrics b { display: block; font-family: var(--font-mono); font-size: 1.45rem; font-weight: 500; margin-top: 6px; }
+.model-metrics i { color: var(--text-muted); font-style: normal; }
+.likely-scores > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.score-pick { background: var(--bg-raise); border: 1px solid var(--card-border); border-radius: 7px; display: flex; font-family: var(--font-mono); gap: 7px; padding: 7px 9px; }
+.score-pick span { color: var(--text-muted); font-size: 0.72rem; text-transform: none; }
+.heatmap-panel { margin-top: 16px; }
 @media (max-width: 560px) {
   .controls { flex-direction: column; align-items: flex-start; gap: 10px; }
   .masthead-top { flex-direction: column; align-items: flex-start; }
   .outcome-legend { gap: 12px; }
+  .match-page { padding-top: 24px; }
+  .match-hero { padding-top: 34px; }
+  .section-heading, .model-metrics { display: block; }
+  .section-heading > p { margin-top: 9px; text-align: left; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .model-metrics > div + div { margin-top: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .match-card.card-enter { animation: none; opacity: 1; transform: none; }
