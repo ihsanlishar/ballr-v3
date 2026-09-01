@@ -1,7 +1,8 @@
 # api.py
 """
-Ballr's backend. Serves predictions for upcoming fixtures across all
-tracked leagues, plus the static frontend.
+Ballr's backend. Serves predictions, live market comparisons, and the
+static frontend — plus starts every league's live Polymarket feed as
+a background thread at boot, all in one process.
 """
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -38,18 +39,15 @@ def leagues():
 @app.route("/api/predictions")
 def predictions():
     league_key = request.args.get("league")
-
     if league_key not in COMPETITIONS:
         return jsonify({
             "error": f"Unknown league '{league_key}'",
             "available_leagues": list(COMPETITIONS.keys())
         }), 400
-
     try:
         preds = get_predictions(league_key, limit=20)
     except Exception as e:
         return jsonify({"error": f"Failed to generate predictions: {str(e)}"}), 500
-
     return jsonify({"league": league_key, "predictions": preds})
 
 
@@ -75,8 +73,10 @@ if __name__ == "__main__":
     import os
     import threading
     import webbrowser
+    from live_feed import start_all_league_feeds
 
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        start_all_league_feeds()
         threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
 
     app.run(port=PORT, debug=True)

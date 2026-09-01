@@ -45,6 +45,35 @@ function matchUrl(p) {
   return `/match?${params.toString()}`;
 }
 
+function marketComparisonHTML(p) {
+  if (!p.market) {
+    return `<div class="market-row market-missing">No live market data yet for this fixture.</div>`;
+  }
+  const m = p.market;
+  const gap = (m.home_pct != null) ? (p.home_pct - m.home_pct) : null;
+  const gapClass = gap > 0 ? 'pos' : gap < 0 ? 'neg' : '';
+  const gapLabel = gap != null
+    ? `Model ${gap > 0 ? 'favors' : 'is softer on'} ${p.home_team} by ${Math.abs(gap).toFixed(1)}pt vs. the market`
+    : '';
+
+  return `
+    <div class="market-row">
+      <div class="market-label">Market odds (via Oddscope)</div>
+      <div class="prob-bar compare-bar">
+        <div class="prob-seg home" style="width:${m.home_pct}%"></div>
+        ${m.draw_pct != null ? `<div class="prob-seg draw" style="width:${m.draw_pct}%"></div>` : ''}
+        <div class="prob-seg away" style="width:${m.away_pct}%"></div>
+      </div>
+      <div class="compare-legend">
+        <span>${m.home_pct}%</span>
+        ${m.draw_pct != null ? `<span>${m.draw_pct}%</span>` : '<span>—</span>'}
+        <span>${m.away_pct}%</span>
+      </div>
+      ${gapLabel ? `<div class="gap-note ${gapClass}">${gapLabel}</div>` : ''}
+    </div>
+  `;
+}
+
 function buildCard(p, index) {
   const card = document.createElement('div');
   card.className = 'match-card card-enter';
@@ -77,6 +106,8 @@ function buildCard(p, index) {
       </div>
       ${uncertain ? '<div class="warn-badge">LIMITED DATA</div>' : ''}
     </div>
+
+    <div class="model-label">Ballr's prediction</div>
     <div class="prob-bar">
       <div class="prob-seg home" style="width:${p.home_pct}%"></div>
       <div class="prob-seg draw" style="width:${p.draw_pct}%"></div>
@@ -99,6 +130,9 @@ function buildCard(p, index) {
         <span class="legend-value">${p.away_pct}%</span>
       </div>
     </div>
+
+    ${marketComparisonHTML(p)}
+
     <div class="metrics-row">
       <div><span>Model xG</span><b>${p.home_xg} – ${p.away_xg}</b></div>
       <div><span>Elo</span><b>${p.home_rating} – ${p.away_rating}</b></div>

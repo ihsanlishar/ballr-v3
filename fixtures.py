@@ -1,12 +1,13 @@
 # fixtures.py
 """
-Fetches upcoming (SCHEDULED) fixtures from football-data.org — separate
-from the one-time historical ingestion, since this needs to be called
-regularly as the season progresses, not just once.
+Fetches upcoming (SCHEDULED) fixtures from football-data.org. League
+codes now come from the unified leagues.py instead of a local dict.
 """
 import requests
 import os
 from dotenv import load_dotenv
+
+from leagues import LEAGUES
 
 load_dotenv()
 
@@ -14,19 +15,12 @@ BASE_URL = "https://api.football-data.org/v4"
 API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY")
 HEADERS = {"X-Auth-Token": API_KEY}
 
-COMPETITIONS = {
-    "premier_league": "PL",
-    "la_liga": "PD",
-    "champions_league": "CL",
-}
+# Kept for backward compatibility with code that imports COMPETITIONS
+# directly (e.g. api.py) — now derived from leagues.py, not duplicated.
+COMPETITIONS = {key: cfg["football_data_code"] for key, cfg in LEAGUES.items()}
 
 
 def get_upcoming_fixtures(league_key, limit=20):
-    """
-    Returns a list of upcoming scheduled matches for a league, each as
-    {home_team, away_team, utc_date}. Only returns matches that
-    haven't been played yet (status=SCHEDULED or TIMED).
-    """
     if not API_KEY:
         raise RuntimeError(
             "FOOTBALL_DATA_API_KEY is not set. Create a .env file with "

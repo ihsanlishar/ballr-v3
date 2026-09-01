@@ -172,3 +172,25 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
   .app, .match-card { transition: none; animation: none; opacity: 1; }
   .scan-line, .loader-wordmark { animation: none; }
 }
+
+/* Market comparison additions */
+.model-label, .market-label {
+  font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 4px 0 8px;
+}
+.market-row { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--card-border); }
+.market-missing { color: var(--text-muted); font-size: 0.8rem; font-style: italic; }
+.compare-bar { height: 22px; opacity: 0.92; }
+.compare-legend { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); }
+.gap-note { margin-top: 8px; font-size: 0.78rem; font-family: var(--font-mono); }
+.gap-note.pos { color: var(--home); }
+.gap-note.neg { color: var(--away); }
+
+.market-panel { margin-top: 16px; }
+.market-empty { color: var(--text-muted); font-size: 0.85rem; }
+.compare-table { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.compare-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; align-items: center; gap: 8px; padding: 8px 0; font-family: var(--font-mono); font-size: 0.85rem; }
+.compare-row.compare-head { color: var(--text-muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--card-border); padding-bottom: 6px; }
+.compare-name { color: var(--text); font-weight: 600; font-family: var(--font-body); font-size: 0.85rem; }
+.compare-gap.pos { color: var(--home); }
+.compare-gap.neg { color: var(--away); }

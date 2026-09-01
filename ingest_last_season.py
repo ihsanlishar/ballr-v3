@@ -1,9 +1,7 @@
 # ingest_last_season.py
 """
-One-time ingestion: pulls last season's (2025-26) full match results
-for Premier League, La Liga, and Champions League from football-data.org,
-and stores them in a local database. Run once; the data doesn't change
-after the fact, so there's no need to re-run this regularly.
+One-time ingestion: pulls last season's full match results for every
+league configured in leagues.py, storing them locally. Run once.
 """
 import requests
 import sqlite3
@@ -11,17 +9,13 @@ import time
 import os
 from dotenv import load_dotenv
 
+from leagues import LEAGUES
+
 load_dotenv()
 
 API_KEY = os.environ.get("FOOTBALL_DATA_API_KEY")
 BASE_URL = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": API_KEY}
-
-COMPETITIONS = {
-    "PL": "premier_league",
-    "PD": "la_liga",
-    "CL": "champions_league",
-}
 
 SEASON = 2025
 
@@ -71,15 +65,9 @@ def fetch_and_store(comp_code, league_key, db_path="ballr.db"):
             (id, competition, season, utc_date, home_team, away_team, home_score, away_score, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            m.get("id"),
-            league_key,
-            SEASON,
-            m.get("utcDate"),
-            m.get("homeTeam", {}).get("name"),
-            m.get("awayTeam", {}).get("name"),
-            score.get("home"),
-            score.get("away"),
-            m.get("status"),
+            m.get("id"), league_key, SEASON, m.get("utcDate"),
+            m.get("homeTeam", {}).get("name"), m.get("awayTeam", {}).get("name"),
+            score.get("home"), score.get("away"), m.get("status"),
         ))
         stored += 1
 
@@ -90,11 +78,10 @@ def fetch_and_store(comp_code, league_key, db_path="ballr.db"):
 
 if __name__ == "__main__":
     ensure_schema()
-
-    for comp_code, league_key in COMPETITIONS.items():
+    for league_key, cfg in LEAGUES.items():
+        comp_code = cfg["football_data_code"]
         print(f"Fetching {league_key} ({comp_code})...")
         count = fetch_and_store(comp_code, league_key)
         print(f"  Stored {count} matches for {league_key}")
         time.sleep(6)
-
     print("\nDone — all historical data cached locally.")
