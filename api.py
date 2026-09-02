@@ -1,16 +1,18 @@
 # api.py
 """
 Ballr's backend. Serves predictions, live market comparisons, and the
-static frontend — plus starts every league's live Polymarket feed as
-a background thread at boot, all in one process.
+static frontend — starts every league's live Polymarket feed AND the
+results-refresh loop as background threads at boot, all in one process.
 """
+import os
 from flask import Flask, jsonify, request, send_from_directory
 
 from predictions import get_match_prediction, get_predictions
 from fixtures import COMPETITIONS
 
 app = Flask(__name__, static_folder="static", static_url_path="")
-PORT = 5051
+
+PORT = int(os.environ.get("PORT", 5051))
 
 
 @app.route("/")
@@ -69,14 +71,25 @@ def match_prediction():
         return jsonify({"error": f"Failed to generate match prediction: {str(e)}"}), 500
 
 
+def start_background_workers():
+    """
+    Starts the live Polymarket feeds and the results-refresh loop.
+    Called exactly once — from the __main__ block for local dev, or
+    from wsgi.py for production (gunicorn never executes __main__).
+    """
+    from live_feed import start_all_league_feeds
+    from results_refresh import start_results_refresh
+
+    start_all_league_feeds()
+    start_results_refresh()
+
+
 if __name__ == "__main__":
-    import os
     import threading
     import webbrowser
-    from live_feed import start_all_league_feeds
 
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        start_all_league_feeds()
+        start_background_workers()
         threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
 
-    app.run(port=PORT, debug=True)
+    app.run(port=PORT, debug=False)
