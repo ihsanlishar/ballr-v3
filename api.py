@@ -72,16 +72,13 @@ def match_prediction():
 
 
 def start_background_workers():
-    """
-    Starts the live Polymarket feeds and the results-refresh loop.
-    Called exactly once — from the __main__ block for local dev, or
-    from wsgi.py for production (gunicorn never executes __main__).
-    """
     from live_feed import start_all_league_feeds
     from results_refresh import start_results_refresh
+    from db_maintenance import start_db_maintenance
 
     start_all_league_feeds()
     start_results_refresh()
+    start_db_maintenance()
 
 
 if __name__ == "__main__":
