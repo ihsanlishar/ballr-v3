@@ -72,10 +72,12 @@ def match_prediction():
 
 
 def start_background_workers():
+    from db_bootstrap import bootstrap_if_needed
     from live_feed import start_all_league_feeds
     from results_refresh import start_results_refresh
     from db_maintenance import start_db_maintenance
 
+    bootstrap_if_needed()
     start_all_league_feeds()
     start_results_refresh()
     start_db_maintenance()
