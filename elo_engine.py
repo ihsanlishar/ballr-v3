@@ -6,7 +6,8 @@ tournaments didn't: home-field advantage, and a running rating that
 updates match-by-match through a season rather than being computed
 fresh per knockout round.
 """
-import sqlite3
+from database import connect
+from config import DB_PATH
 
 INITIAL_RATING = 1500
 K_FACTOR = 20  # how much one match result shifts a team's rating
@@ -47,14 +48,14 @@ def update_ratings(rating_home, rating_away, home_score, away_score):
     return new_rating_home, new_rating_away
 
 
-def build_current_ratings(competition, db_path="ballr.db"):
+def build_current_ratings(competition, db_path=DB_PATH):
     """
     Replays every FINISHED match for a competition, in chronological
     order, updating Elo ratings match by match. Returns a dict of
     {team_name: current_rating} reflecting each team's strength as of
     the most recent match in the dataset.
     """
-    conn = sqlite3.connect(db_path)
+    conn = connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT home_team, away_team, home_score, away_score, utc_date

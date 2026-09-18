@@ -5,8 +5,9 @@ distribution via Monte Carlo — same 50k-100k iteration technique as
 Ballr V2, adapted to properly model draws (Elo's raw win/lose formula
 doesn't include them on its own).
 """
+from database import connect
+from config import DB_PATH
 import math
-import sqlite3
 
 import numpy as np
 from elo_engine import expected_score, HOME_ADVANTAGE, INITIAL_RATING
@@ -79,7 +80,7 @@ def simulate_match(home_rating, away_rating, n_simulations=50000):
     )
 
 
-def build_goal_profiles(competition, ratings=None, db_path="ballr.db"):
+def build_goal_profiles(competition, ratings=None, db_path=DB_PATH, connection=None):
     """Build the recency-weighted team statistics used by Ballr V2.
 
     V3 has one local database per competition rather than V2's multi-source
@@ -89,7 +90,7 @@ def build_goal_profiles(competition, ratings=None, db_path="ballr.db"):
     contribution is adjusted for the current Elo strength of its opponent and
     the three most-recent defensive performances receive extra weight.
     """
-    conn = sqlite3.connect(db_path)
+    conn = connection if connection is not None else connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT home_team, away_team, home_score, away_score, utc_date
@@ -99,7 +100,8 @@ def build_goal_profiles(competition, ratings=None, db_path="ballr.db"):
         ORDER BY utc_date DESC
     """, (competition,))
     rows = cursor.fetchall()
-    conn.close()
+    if connection is None:
+        conn.close()
 
     if not rows:
         raise ValueError(f"No finished matches available for '{competition}'")
@@ -256,7 +258,7 @@ def score_projection(home_rating, away_rating, goal_profiles, home_team, away_te
     # nearly every matchup clusters near 1.5 goals apiece and 1-1 becomes the
     # mechanical mode of most score matrices.
     def concession_factor(conceded_rate, league_rate):
-        raw_factor = conceded_rate / league_rate
+        raw_factor = conceded_rate / league_rate if league_rate > 0 else 1.0
         return min(1.35, max(0.70, 0.5 + 0.5 * raw_factor))
 
     home_xg = home_stats["home_goals_per_game"] * home_elo_ratio

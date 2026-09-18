@@ -1,5 +1,6 @@
 // static/match.js
 const content = document.getElementById('match-content');
+let loading = false;
 
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -21,7 +22,7 @@ function marketPanel(p) {
   if (!p.market) {
     return `
       <section class="detail-panel market-panel">
-        <div class="section-heading"><div><p class="eyebrow">Live market</p><h2>Ballr vs. the market</h2></div><p>via Oddscope</p></div>
+        <div class="section-heading"><div><p class="eyebrow">Live market</p><h2>Ballr vs. the market</h2></div><p>via Polymarket</p></div>
         <p class="market-empty">No live market data tracked for this fixture yet — check back closer to kickoff.</p>
       </section>`;
   }
@@ -48,7 +49,7 @@ function marketPanel(p) {
 
   return `
     <section class="detail-panel market-panel">
-      <div class="section-heading"><div><p class="eyebrow">Live market</p><h2>Ballr vs. the market</h2></div><p>via Oddscope</p></div>
+      <div class="section-heading"><div><p class="eyebrow">Live market</p><h2>Ballr vs. the market</h2></div><p>via Polymarket</p></div>
       <div class="compare-table">
         <div class="compare-row compare-head">
           <span class="compare-name"></span>
@@ -96,7 +97,7 @@ function render(p) {
     </header>
 
     <section class="detail-panel outcome-panel">
-      <div class="section-heading"><div><p class="eyebrow">Predicted outcome</p><h2>Win / Draw / Win</h2></div><p>Calibrated Monte Carlo model</p></div>
+      <div class="section-heading"><div><p class="eyebrow">Predicted outcome</p><h2>Win / Draw / Win</h2></div><p>Elo + Monte Carlo model</p></div>
       <div class="large-prob-bar"><div class="prob-seg home" style="width:${p.home_pct}%"></div><div class="prob-seg draw" style="width:${p.draw_pct}%"></div><div class="prob-seg away" style="width:${p.away_pct}%"></div></div>
       <div class="outcome-values">
         <div><span>${escapeHtml(p.home_team)} win</span><b>${p.home_pct}%</b></div>
@@ -126,15 +127,23 @@ async function init() {
     content.innerHTML = '<p class="error-copy">This match link is incomplete. <a href="/">Return to all fixtures.</a></p>';
     return;
   }
+  if (loading) return;
+  loading = true;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const response = await fetch(`/api/match?${params.toString()}`);
+    const response = await fetch(`/api/match?${params.toString()}`, { signal: controller.signal });
     const prediction = await response.json();
     if (!response.ok) throw new Error(prediction.error || 'Prediction could not be loaded');
     render(prediction);
   } catch (error) {
     console.error(error);
     content.innerHTML = `<p class="error-copy">${escapeHtml(error.message)} <a href="/">Return to all fixtures.</a></p>`;
+  } finally {
+    clearTimeout(timer);
+    loading = false;
   }
 }
 
 init();
+setInterval(() => { if (!document.hidden) init(); }, 120000);

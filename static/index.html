@@ -50,16 +50,19 @@
     <div class="how-to-body">
       <p>Each card is one upcoming <strong>match</strong>. The bar shows Ballr's predicted Win/Draw/Win split.</p>
       <ul>
-        <li><strong>Model</strong> — an Elo rating system built from each team's real results this season, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
+        <li><strong>Model</strong> — an Elo rating system built from each team's available historical and current-season results, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
         <li><strong>Scorelines and xG</strong> — a separate Poisson projection combines recent scoring, opponent strength, defensive clean-sheet record, Elo, win rate, goal difference, and form to produce expected goals and exact-score probabilities. It is a model projection, not event-level xG.</li>
         <li><strong>Home advantage</strong> is factored in, based on real backtested evidence, not just assumed.</li>
-        <li><strong>Known limitation:</strong> ratings are based purely on this season's match results so far — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
-        <li><strong>vs. the market</strong> — when available, each card also shows Oddscope's live Polymarket odds for the same fixture, and the gap between Ballr's view and the market's.</li>
+        <li><strong>Known limitation:</strong> ratings are based purely on available match results — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
+        <li><strong>vs. the market</strong> — when available, each card also shows recent Polymarket odds for the same fixture, and the gap between Ballr's view and the market's.</li>
       </ul>
       <p class="disclaimer">Not betting advice — a model's opinion, nothing more. Backtested Brier score (lower is better, ~0.667 is random guessing): ~0.61-0.63 on last season's results.</p>
     </div>
   </details>
 
+  <div id="request-error" class="error-copy" role="alert" hidden>
+    <p id="error-message"></p><button id="retry-load" type="button">Retry</button>
+  </div>
   <div class="card-list" id="list-predictions"></div>
   <p class="empty-note" id="empty-predictions" hidden>No upcoming fixtures found for this league yet.</p>
 

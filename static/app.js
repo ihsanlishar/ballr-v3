@@ -4,14 +4,27 @@ const state = {
   predictions: [],
   searchTerm: '',
   firstLoadDone: false,
+  requestId: 0,
+  controller: null,
+  loading: false,
 };
 
 const el = (id) => document.getElementById(id);
 
-async function fetchJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  return res.json();
+const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+}[character]));
+
+async function fetchJSON(url, controller = new AbortController()) {
+  const timer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function loadLeagues() {
@@ -37,7 +50,7 @@ function fmtDate(iso) {
 
 function matchUrl(p) {
   const params = new URLSearchParams({
-    league: state.league,
+    league: p.league,
     home: p.home_team,
     away: p.away_team,
     date: p.utc_date,
@@ -53,12 +66,12 @@ function marketComparisonHTML(p) {
   const gap = (m.home_pct != null) ? (p.home_pct - m.home_pct) : null;
   const gapClass = gap > 0 ? 'pos' : gap < 0 ? 'neg' : '';
   const gapLabel = gap != null
-    ? `Model ${gap > 0 ? 'favors' : 'is softer on'} ${p.home_team} by ${Math.abs(gap).toFixed(1)}pt vs. the market`
+    ? `Model ${gap > 0 ? 'favors' : 'is softer on'} ${escapeHtml(p.home_team)} by ${Math.abs(gap).toFixed(1)}pt vs. the market`
     : '';
 
   return `
     <div class="market-row">
-      <div class="market-label">Market odds (via Oddscope)</div>
+      <div class="market-label">Market odds (Polymarket)</div>
       <div class="prob-bar compare-bar">
         <div class="prob-seg home" style="width:${m.home_pct}%"></div>
         ${m.draw_pct != null ? `<div class="prob-seg draw" style="width:${m.draw_pct}%"></div>` : ''}
@@ -101,7 +114,7 @@ function buildCard(p, index) {
   card.innerHTML = `
     <div class="card-top">
       <div>
-        <p class="card-title">${p.home_team} vs. ${p.away_team}</p>
+        <p class="card-title">${escapeHtml(p.home_team)} vs. ${escapeHtml(p.away_team)}</p>
         <p class="card-meta">${fmtDate(p.utc_date)}</p>
       </div>
       ${uncertain ? '<div class="warn-badge">LIMITED DATA</div>' : ''}
@@ -116,7 +129,7 @@ function buildCard(p, index) {
     <div class="outcome-legend">
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--home)"></span>
-        <span class="legend-name">${p.home_team}</span>
+        <span class="legend-name">${escapeHtml(p.home_team)}</span>
         <span class="legend-value">${p.home_pct}%</span>
       </div>
       <div class="legend-item">
@@ -126,7 +139,7 @@ function buildCard(p, index) {
       </div>
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--away)"></span>
-        <span class="legend-name">${p.away_team}</span>
+        <span class="legend-name">${escapeHtml(p.away_team)}</span>
         <span class="legend-value">${p.away_pct}%</span>
       </div>
     </div>
@@ -160,6 +173,7 @@ function render() {
   container.innerHTML = '';
 
   if (!filtered.length) {
+    if (state.loading || !el('request-error').hidden) { emptyNote.hidden = true; return; }
     emptyNote.hidden = false;
     return;
   }
@@ -174,36 +188,72 @@ function hideLoader() {
   el('loader').classList.add('hidden');
 }
 
+function showError(message) {
+  el('request-error').hidden = false;
+  el('error-message').textContent = message;
+  el('empty-predictions').hidden = true;
+}
+
 async function loadPredictions() {
   if (!state.league) { hideLoader(); return; }
+  const requestId = ++state.requestId;
+  const league = state.league;
+  if (state.controller) state.controller.abort();
+  const controller = new AbortController();
+  state.controller = controller;
+  state.loading = true;
+  state.predictions = [];
+  el('list-predictions').innerHTML = '';
+  el('stat-tracked').textContent = '—';
+  el('last-refreshed').textContent = 'Updating predictions…';
+  el('request-error').hidden = true;
+  el('empty-predictions').hidden = true;
   try {
-    const data = await fetchJSON(`/api/predictions?league=${state.league}`);
+    const data = await fetchJSON(`/api/predictions?league=${encodeURIComponent(league)}`, controller);
+    if (requestId !== state.requestId) return;
     state.predictions = data.predictions || [];
+    state.loading = false;
     el('stat-tracked').textContent = state.predictions.length;
     render();
     el('last-refreshed').textContent =
       `Last refreshed: ${new Date().toISOString().slice(0, 19).replace('T', ' ')} UTC`;
   } catch (err) {
-    console.error('Failed to load predictions:', err);
+    if (requestId !== state.requestId) return;
+    showError(err.name === 'AbortError' ? 'The request timed out. Please retry.' : err.message);
+    el('last-refreshed').textContent = 'Update failed';
   } finally {
+    if (requestId === state.requestId) {
+      state.loading = false;
+      hideLoader();
+    }
+  }
+}
+
+async function loadInitial() {
+  el('request-error').hidden = true;
+  try {
+    await loadLeagues();
+    await loadPredictions();
+  } catch (error) {
+    showError('Could not load leagues. Please retry.');
     hideLoader();
   }
 }
 
 function init() {
-  el('league-select').addEventListener('change', (e) => {
-    state.league = e.target.value;
+  el('league-select').addEventListener('change', (event) => {
+    state.league = event.target.value;
     loadPredictions();
   });
-
-  el('search-input').addEventListener('input', (e) => {
-    state.searchTerm = e.target.value.trim();
+  el('search-input').addEventListener('input', (event) => {
+    state.searchTerm = event.target.value.trim();
     render();
   });
-
-  loadLeagues().then(() => {
-    loadPredictions();
-  });
+  el('retry-load').addEventListener('click', () => state.league ? loadPredictions() : loadInitial());
+  loadInitial();
+  setInterval(() => {
+    if (!document.hidden && state.league && !state.loading) loadPredictions();
+  }, 120000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

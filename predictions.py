@@ -44,14 +44,16 @@ def build_prediction(league_key, fixture, ratings, goal_profiles, grouped_market
 
 
 def get_match_prediction(league_key, home_team, away_team, utc_date=None):
+    fixtures = get_upcoming_fixtures(league_key, limit=None)
+    fixture = next((item for item in fixtures if item['home_team'] == home_team
+                    and item['away_team'] == away_team
+                    and (utc_date is None or item['utc_date'] == utc_date)), None)
+    if fixture is None:
+        raise LookupError('Upcoming match not found')
     ratings = build_current_ratings(league_key)
     goal_profiles = build_goal_profiles(league_key, ratings)
     grouped_market_matches = get_grouped_market_matches(league_key)
-    return build_prediction(league_key, {
-        "home_team": home_team,
-        "away_team": away_team,
-        "utc_date": utc_date,
-    }, ratings, goal_profiles, grouped_market_matches)
+    return build_prediction(league_key, fixture, ratings, goal_profiles, grouped_market_matches)
 
 
 def get_predictions(league_key, limit=20):

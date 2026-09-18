@@ -5,13 +5,15 @@ against real historical results — same no-lookahead discipline as
 backtest.py: for each match tested, goal profiles and Elo ratings are
 built using ONLY matches that happened strictly before it.
 """
+from database import connect
+from config import DB_PATH
 import sqlite3
 from elo_engine import INITIAL_RATING, update_ratings
-from match_simulator import build_goal_profiles, score_projection
+from match_simulator import build_goal_profiles, score_projection, MAX_MODEL_GOALS
 
 
-def get_chronological_matches(competition, db_path="ballr.db"):
-    conn = sqlite3.connect(db_path)
+def get_chronological_matches(competition, db_path=DB_PATH):
+    conn = connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT home_team, away_team, home_score, away_score, utc_date
@@ -24,7 +26,7 @@ def get_chronological_matches(competition, db_path="ballr.db"):
     return [r for r in rows if r[2] is not None and r[3] is not None]
 
 
-def run_scoreline_backtest(competition, warmup_matches=100, db_path="ballr.db"):
+def run_scoreline_backtest(competition, warmup_matches=100, db_path=DB_PATH):
     """
     warmup_matches is higher than backtest.py's (100 vs 60) because
     build_goal_profiles needs real match history per team to compute
@@ -44,7 +46,7 @@ def run_scoreline_backtest(competition, warmup_matches=100, db_path="ballr.db"):
             # Build goal profiles using ONLY matches before this one —
             # write a temporary in-memory snapshot rather than querying
             # the full ballr.db, which would leak future matches.
-            past_matches = all_matches[:i]
+            past_matches = [match for match in all_matches[:i] if match[4] < date]
 
             conn = sqlite3.connect(":memory:")
             cursor = conn.cursor()
@@ -62,32 +64,21 @@ def run_scoreline_backtest(competition, warmup_matches=100, db_path="ballr.db"):
                 )
             conn.commit()
 
-            try:
-                profiles = build_goal_profiles(competition, ratings, db_path=":memory-not-supported")
-            except Exception:
-                # build_goal_profiles takes a db_path, not a connection —
-                # patch it to accept an existing connection for this
-                # backtest-only use case.
-                profiles = _build_goal_profiles_from_conn(conn, competition, ratings)
+            profiles = build_goal_profiles(competition, ratings, connection=conn)
 
             conn.close()
 
             projection = score_projection(
-                ratings[home], ratings[away], profiles, home, away
+                ratings[home], ratings[away], profiles, home, away, max_goals=MAX_MODEL_GOALS
             )
 
-            predicted_home_goals = round(projection["home_xg"])
-            predicted_away_goals = round(projection["away_xg"])
-
-            exact_score_correct = (predicted_home_goals == home_score and predicted_away_goals == away_score)
-
-            # Find the probability the model assigned to the ACTUAL scoreline
-            actual_key_prob = None
-            for row_idx, row in enumerate(projection["score_matrix"]):
-                for col_idx, prob in enumerate(row):
-                    if row_idx == min(home_score, projection["max_display_goals"]) and \
-                       col_idx == min(away_score, projection["max_display_goals"]):
-                        actual_key_prob = prob
+            likely = projection['top_scorelines'][0]
+            exact_score_correct = (likely['home_goals'] == home_score and likely['away_goals'] == away_score)
+            # Outcomes beyond the model grid have no represented mass; never
+            # substitute the probability of a different score at the boundary.
+            actual_key_prob = (projection['score_matrix'][home_score][away_score]
+                               if home_score <= MAX_MODEL_GOALS and away_score <= MAX_MODEL_GOALS
+                               else 0.0)
 
             results.append({
                 "home": home, "away": away,
@@ -105,36 +96,6 @@ def run_scoreline_backtest(competition, warmup_matches=100, db_path="ballr.db"):
     return results
 
 
-def _build_goal_profiles_from_conn(conn, competition, ratings):
-    """Fallback: reimplements build_goal_profiles' query against an
-    already-open in-memory connection instead of a file path, since
-    the original function only accepts a db_path string."""
-    import match_simulator as ms
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT home_team, away_team, home_score, away_score, utc_date
-        FROM matches
-        WHERE competition = ? AND status = 'FINISHED'
-        ORDER BY utc_date DESC
-    """, (competition,))
-    rows = cursor.fetchall()
-
-    # Reuse the exact same logic as build_goal_profiles by temporarily
-    # monkeypatching sqlite3.connect just for this call — simplest way
-    # to avoid duplicating ~80 lines of averaging logic here.
-    import unittest.mock as mock
-    class FakeConn:
-        def cursor(self_inner):
-            class FakeCursor:
-                def execute(self_c, *a, **k): pass
-                def fetchall(self_c): return rows
-            return FakeCursor()
-        def close(self_inner): pass
-
-    with mock.patch("sqlite3.connect", return_value=FakeConn()):
-        return ms.build_goal_profiles(competition, ratings, db_path="unused")
-
-
 def summarize_scoreline(results, competition):
     total = len(results)
     exact_correct = sum(1 for r in results if r["exact_score_correct"])
@@ -143,7 +104,7 @@ def summarize_scoreline(results, competition):
     print("=" * 60)
     print(f" {competition} — scoreline backtest ({total} matches)")
     print("=" * 60)
-    print(f"Exact score correct: {exact_correct}/{total} ({exact_correct/total*100:.1f}%)")
+    print(f"Exact score correct: {exact_correct}/{total} ({(exact_correct/total*100 if total else 0):.1f}%)")
     print(f"Avg probability the model assigned to the ACTUAL scoreline: {avg_prob_on_actual:.2f}%")
     print()
 

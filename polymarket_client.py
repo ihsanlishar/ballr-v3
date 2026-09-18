@@ -11,38 +11,49 @@ hard-won lessons still apply:
    that field is one resting order's price, not the market's real
    current probability.
 """
+from database import connect
+from config import DB_PATH
 import re
 import json
-import sqlite3
+import time
 import requests
-from datetime import datetime, timezone
+from datetime import datetime
 
 from leagues import get_league_config
+from request_cache import RequestCache
+from config import HTTP_TIMEOUT
+
+_event_cache = RequestCache(ttl=60)
 
 DATE_PATTERN = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
 
 def _fetch_events(tag_slug, closed):
+    return _event_cache.get((tag_slug, closed), lambda: _fetch_events_uncached(tag_slug, closed))
+
+
+def _fetch_events_uncached(tag_slug, closed):
     url = "https://gamma-api.polymarket.com/events"
     all_events = []
     offset = 0
     page_size = 100
+    deadline = time.monotonic() + 25
 
-    while True:
+    while offset < 2000:
         params = {
             "tag_slug": tag_slug,
             "closed": "true" if closed else "false",
             "limit": page_size,
             "offset": offset
         }
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-        except requests.RequestException as e:
-            print(f"[polymarket_client] Warning: failed to fetch events "
-                  f"(tag_slug={tag_slug}, closed={closed}): {e}")
-            break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError('Polymarket discovery exceeded its time budget')
+        response = requests.get(url, params=params, timeout=(HTTP_TIMEOUT[0], min(HTTP_TIMEOUT[1], remaining)))
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, list):
+            raise ValueError('Invalid Polymarket event response')
 
         if not data:
             break
@@ -53,6 +64,8 @@ def _fetch_events(tag_slug, closed):
         if len(data) < page_size:
             break
 
+    if offset >= 2000:
+        raise RuntimeError("Polymarket event pagination exceeded safety limit")
     return all_events
 
 
@@ -60,7 +73,7 @@ def find_all_matches(league_key, include_closed=False):
     config = get_league_config(league_key)
     tag_slug = config["polymarket_tag_slug"]
 
-    events = _fetch_events(tag_slug, closed=False)
+    events = list(_fetch_events(tag_slug, closed=False))
     if include_closed:
         events += _fetch_events(tag_slug, closed=True)
 
@@ -73,8 +86,8 @@ def find_all_matches(league_key, include_closed=False):
                 prices_raw = market.get("outcomePrices")
                 matches.append({
                     "event_id": event_id,
-                    "event_title": event.get("title"),
-                    "question": market.get("question"),
+                    "event_title": event.get("title") or "",
+                    "question": market.get("question") or "",
                     "clob_token_ids": json.loads(market.get("clobTokenIds")),
                     "outcomes": json.loads(outcomes_raw) if outcomes_raw else None,
                     "outcome_prices": [float(p) for p in json.loads(prices_raw)] if prices_raw else None,
@@ -102,8 +115,8 @@ def get_yes_asset_id(match):
             if str(outcome).strip().lower() == "yes":
                 return token_ids[i]
     print(f"[polymarket_client] Warning: couldn't confirm the 'Yes' outcome for "
-          f"question='{match.get('question')}' — defaulting to the first token id.")
-    return token_ids[0] if token_ids else None
+          f"question='{match.get('question')}' — ignoring this market.")
+    return None
 
 
 def is_moneyline_market(league_key, title, question):
@@ -188,13 +201,13 @@ def find_grouped_matches(league_key, include_closed=False):
     return grouped
 
 
-def ensure_price_schema(db_path="ballr.db"):
+def ensure_price_schema(db_path=DB_PATH):
     """
     Creates the price_updates table (live Polymarket data) alongside
     the existing matches table (historical football-data.org results)
     — two tables, one shared database.
     """
-    conn = sqlite3.connect(db_path)
+    conn = connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS price_updates (
@@ -206,12 +219,14 @@ def ensure_price_schema(db_path="ballr.db"):
             league TEXT
         )
     """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS price_asset_latest ON price_updates (asset_id, id DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS price_timestamp ON price_updates (timestamp)")
     conn.commit()
     conn.close()
 
 
-def get_latest_market_price_with_timestamp(asset_id, db_path="ballr.db"):
-    conn = sqlite3.connect(db_path)
+def get_latest_market_price_with_timestamp(asset_id, db_path=DB_PATH):
+    conn = connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT price, timestamp FROM price_updates

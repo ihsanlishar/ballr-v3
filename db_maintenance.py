@@ -1,62 +1,50 @@
 # db_maintenance.py
-"""
-Prunes old price_updates rows that the app will never query again.
-Nothing in Ballr reads price history beyond the most recent ~60 ticks
-per asset (see get_price_history's limit=60 default) — so retaining
-everything forever is pure waste. Runs as a periodic background task,
-same pattern as results_refresh.py.
-"""
-import sqlite3
+"""Prune price history in small transactions; SQLite reuses freed pages."""
+from database import connect
+from config import DB_PATH
+from contextlib import closing
 import time
 import threading
 from datetime import datetime, timezone, timedelta
 
-# Keep 48 hours of tick history per asset — comfortably more than the
-# 60-point chart window needs, while still bounding growth. Adjust if
-# you find the charts want a longer visible window later.
+# Retain recent ticks for diagnostics while bounding storage growth.
 RETENTION_HOURS = 48
 
 PRUNE_INTERVAL_SECONDS = 60 * 60  # run once per hour
 
 
-def prune_old_price_updates(db_path="ballr.db", retention_hours=RETENTION_HOURS):
+def prune_old_price_updates(db_path=DB_PATH, retention_hours=RETENTION_HOURS):
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=retention_hours)).isoformat()
 
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT COUNT(*) FROM price_updates WHERE timestamp < ?", (cutoff,))
-    to_delete = cursor.fetchone()[0]
-
-    cursor.execute("DELETE FROM price_updates WHERE timestamp < ?", (cutoff,))
-    conn.commit()
-
-    # VACUUM reclaims the freed disk space — without it, SQLite keeps
-    # the file at its largest-ever size even after deleting rows.
-    cursor.execute("VACUUM")
-    conn.commit()
-    conn.close()
+    to_delete = 0
+    with closing(connect(db_path)) as conn:
+        while True:
+            with conn:
+                cursor = conn.execute("""DELETE FROM price_updates WHERE id IN (
+                    SELECT id FROM price_updates WHERE timestamp < ? LIMIT 5000
+                )""", (cutoff,))
+            to_delete += cursor.rowcount
+            if cursor.rowcount < 5000:
+                break
+            time.sleep(0.01)
+    # No hourly VACUUM: new ticks reuse these pages without blocking readers.
 
     print(f"[db_maintenance] Pruned {to_delete} price ticks older than "
           f"{retention_hours}h. Retained the rest.")
     return to_delete
 
 
-def _prune_loop(db_path="ballr.db"):
+def _prune_loop(db_path=DB_PATH):
     while True:
-        time.sleep(PRUNE_INTERVAL_SECONDS)
         try:
             prune_old_price_updates(db_path)
         except Exception as e:
             print(f"[db_maintenance] Warning: prune failed: {e}")
+        time.sleep(PRUNE_INTERVAL_SECONDS)
 
 
-def start_db_maintenance(db_path="ballr.db"):
-    """
-    Called once from api.py at startup. Does one immediate prune (to
-    shrink an already-bloated database right away), then runs hourly.
-    """
-    prune_old_price_updates(db_path)
+def start_db_maintenance(db_path=DB_PATH):
+    """Run an immediate prune in the maintenance thread, then repeat hourly."""
     thread = threading.Thread(target=_prune_loop, args=(db_path,), daemon=True, name="db-maintenance")
     thread.start()
     print(f"[db_maintenance] Background pruning started — checking every "

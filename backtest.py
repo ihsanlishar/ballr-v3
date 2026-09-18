@@ -6,12 +6,13 @@ matches that occurred strictly before it — never the season's final
 ratings. Testing with lookahead data would silently make the model
 look far more accurate than it actually is.
 """
-import sqlite3
+from database import connect
+from config import DB_PATH
 from elo_engine import INITIAL_RATING, update_ratings
 from match_simulator import simulate_match
 
-def get_chronological_matches(competition, db_path="ballr.db"):
-    conn = sqlite3.connect(db_path)
+def get_chronological_matches(competition, db_path=DB_PATH):
+    conn = connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT home_team, away_team, home_score, away_score, utc_date
