@@ -194,3 +194,8 @@ select:hover, input:hover, select:focus, input:focus { border-color: var(--card-
 .compare-name { color: var(--text); font-weight: 600; font-family: var(--font-body); font-size: 0.85rem; }
 .compare-gap.pos { color: var(--home); }
 .compare-gap.neg { color: var(--away); }
+/* Performance report remains readable on narrow screens. */
+.performance-table-wrap { overflow-x: auto; }
+.performance-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0 2rem; }
+.performance-table th, .performance-table td { text-align: left; padding: .8rem; border-bottom: 1px solid #343c44; }
+#data-freshness { padding: 1rem; border: 1px solid #bd9359; border-radius: 12px; color: #efce9a; }

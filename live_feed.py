@@ -4,12 +4,12 @@ import logging
 import math
 import ssl
 import threading
-from contextlib import closing
 from datetime import datetime, timezone
 import certifi
 import websocket
 from config import DB_PATH
-from database import connect
+from operations import report
+from storage_guard import write_quotes
 from leagues import LEAGUES
 from polymarket_client import find_all_matches, is_moneyline_market, is_draw_market, ensure_price_schema
 
@@ -44,6 +44,9 @@ class LeagueFeed:
     def _refresh_assets(self):
         # Exceptions leave the existing subscription intact.
         ids, _ = self.build_tracked_asset_ids()
+        report(f'discovery:{self.league_key}')
+        if not ids:
+            report(f'feed:{self.league_key}', 'idle')
         with self.state_lock:
             changed = set(ids) != set(self.current_asset_ids)
             self.current_asset_ids = ids
@@ -61,6 +64,7 @@ class LeagueFeed:
                 self._refresh_assets()
                 delay = REFRESH_INTERVAL_SECONDS
             except Exception:
+                report(f'discovery:{self.league_key}', 'error')
                 logger.exception('Market discovery failed for %s; retrying', self.league_key)
                 delay = 60
             self.stopped.wait(delay)
@@ -102,20 +106,22 @@ class LeagueFeed:
                     continue
                 rows.append((asset, (bid + ask) / 2, change.get('side'), timestamp, self.league_key))
         if rows:
-            with closing(connect(self.db_path)) as conn, conn:
-                conn.executemany('''INSERT INTO price_updates
-                    (asset_id, price, side, timestamp, league) VALUES (?, ?, ?, ?, ?)''', rows)
+            report(f'feed:{self.league_key}')
+            write_quotes(rows, self.db_path)
 
     def _on_error(self, ws, error):
+        report(f'feed:{self.league_key}', 'error')
         logger.warning('Market connection error for %s: %s', self.league_key, error)
 
     def _on_close(self, ws, close_status_code, close_msg):
         with self.state_lock:
             if self.current_ws is ws:
                 self.current_ws = None
+        report(f'feed:{self.league_key}', 'disconnected')
         # The outer loop owns reconnects; callbacks must never recurse.
 
     def _on_open(self, ws):
+        report(f'feed:{self.league_key}', 'connected')
         with self.state_lock:
             ws.send(json.dumps({'type': 'market', 'assets_ids': self.current_asset_ids}))
 

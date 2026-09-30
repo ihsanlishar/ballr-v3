@@ -1,23 +1,30 @@
-"""Per-key cache that coalesces requests and backs off after provider errors."""
+"""Bounded, per-key request coalescing with provider-error backoff."""
+from collections import OrderedDict
 import threading
 import time
 
 
 class RequestCache:
-    def __init__(self, ttl, failure_ttl=30):
-        self.ttl = ttl
-        self.failure_ttl = failure_ttl
-        self.entries = {}
-        self.locks = {}
+    def __init__(self, ttl, failure_ttl=30, max_entries=64):
+        self.ttl, self.failure_ttl = ttl, failure_ttl
+        self.max_entries = max_entries
+        self.entries = OrderedDict()
+        self.locks = [threading.Lock() for _ in range(64)]
         self.guard = threading.Lock()
 
-    def get(self, key, fetch):
+    def clear(self):
         with self.guard:
-            lock = self.locks.setdefault(key, threading.Lock())
+            self.entries.clear()
+
+    def get(self, key, fetch):
+        lock = self.locks[hash(key) % len(self.locks)]
         if not lock.acquire(timeout=20):
             raise RuntimeError('Data refresh is busy. Please retry shortly.')
         try:
-            entry = self.entries.get(key)
+            with self.guard:
+                entry = self.entries.get(key)
+                if entry:
+                    self.entries.move_to_end(key)
             if entry and time.monotonic() < entry[0]:
                 if entry[2]:
                     raise RuntimeError('Data provider is temporarily unavailable.')
@@ -25,9 +32,16 @@ class RequestCache:
             try:
                 value = fetch()
             except Exception:
-                self.entries[key] = (time.monotonic() + self.failure_ttl, None, True)
+                self._store(key, (time.monotonic() + self.failure_ttl, None, True))
                 raise
-            self.entries[key] = (time.monotonic() + self.ttl, value, False)
+            self._store(key, (time.monotonic() + self.ttl, value, False))
             return value
         finally:
             lock.release()
+
+    def _store(self, key, entry):
+        with self.guard:
+            self.entries[key] = entry
+            self.entries.move_to_end(key)
+            while len(self.entries) > self.max_entries:
+                self.entries.popitem(last=False)

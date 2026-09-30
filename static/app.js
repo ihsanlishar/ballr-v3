@@ -207,11 +207,16 @@ async function loadPredictions() {
   el('stat-tracked').textContent = '—';
   el('last-refreshed').textContent = 'Updating predictions…';
   el('request-error').hidden = true;
+  el('data-freshness').hidden = true;
   el('empty-predictions').hidden = true;
   try {
     const data = await fetchJSON(`/api/predictions?league=${encodeURIComponent(league)}`, controller);
     if (requestId !== state.requestId) return;
     state.predictions = data.predictions || [];
+    const freshness = data.data_status;
+    el('data-freshness').hidden = !freshness?.stale;
+    el('data-freshness').textContent = freshness?.stale
+      ? `Using saved match data. Last results sync: ${freshness.last_results_sync ? new Date(freshness.last_results_sync).toLocaleString() : 'unavailable'}. Updates are temporarily delayed.` : '';
     state.loading = false;
     el('stat-tracked').textContent = state.predictions.length;
     render();

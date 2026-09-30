@@ -42,7 +42,7 @@ MAX_DISPLAY_GOALS = 5
 MAX_MODEL_GOALS = 8
 
 
-def simulate_match(home_rating, away_rating, n_simulations=50000):
+def simulate_match(home_rating, away_rating, n_simulations=50000, seed=None):
     """
     Returns (home_win_pct, draw_pct, away_win_pct) as a fraction of
     n_simulations, based on simulating goal-scoring using each team's
@@ -60,7 +60,7 @@ def simulate_match(home_rating, away_rating, n_simulations=50000):
     draws = 0
     away_wins = 0
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed)
 
     for _ in range(n_simulations):
         noise = rng.normal(loc=0, scale=GOAL_VARIANCE)

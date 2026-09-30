@@ -19,11 +19,13 @@ def league_status(league, db_path=DB_PATH):
     timestamp = sync[0] if sync else None
     age = ((datetime.now(timezone.utc) - datetime.fromisoformat(timestamp)).total_seconds()
            if timestamp else float('inf'))
-    return {'ready': bool(history) and 0 <= age <= 7200, 'last_results_sync': timestamp}
+    return {'ready': bool(history) and 0 <= age <= 7200,
+            'available': bool(history) and 0 <= age <= 86400,
+            'stale': age > 7200, 'last_results_sync': timestamp}
 
 
 def require_league_data(league):
-    if not league_status(league)['ready']:
+    if not league_status(league)['available']:
         raise DataUnavailable('Match data is updating or temporarily unavailable. Please retry shortly.')
 
 

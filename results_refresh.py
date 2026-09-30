@@ -6,6 +6,7 @@ from config import DB_PATH, current_season
 from football_client import get_season_matches
 from ingest_last_season import store_matches
 from leagues import LEAGUES
+from operations import report
 
 logger = logging.getLogger(__name__)
 REFRESH_INTERVAL_SECONDS = 30 * 60
@@ -21,9 +22,11 @@ def refresh_all_leagues(db_path=DB_PATH):
     for league, cfg in LEAGUES.items():
         try:
             total, finished = fetch_and_upsert_season(cfg['football_data_code'], league, db_path)
+            report(f'results:{league}')
             logger.info('%s: %s matches synced, %s newly finished', league, total, finished)
         except Exception:
             succeeded = False
+            report(f'results:{league}', 'error')
             logger.exception('Results refresh failed for %s; will retry', league)
     return succeeded
 

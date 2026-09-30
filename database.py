@@ -19,3 +19,5 @@ def initialize(db_path=DB_PATH):
     from polymarket_client import ensure_price_schema
     ensure_schema(db_path)
     ensure_price_schema(db_path)
+    from performance import ensure_schema as ensure_archive_schema
+    ensure_archive_schema(db_path)

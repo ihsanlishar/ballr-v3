@@ -135,6 +135,9 @@ async function init() {
     const response = await fetch(`/api/match?${params.toString()}`, { signal: controller.signal });
     const prediction = await response.json();
     if (!response.ok) throw new Error(prediction.error || 'Prediction could not be loaded');
+    const freshness = document.getElementById('data-freshness');
+    freshness.hidden = !prediction.data_status?.stale;
+    freshness.textContent = prediction.data_status?.stale ? 'Using saved match data. Provider updates are temporarily delayed.' : '';
     render(prediction);
   } catch (error) {
     console.error(error);

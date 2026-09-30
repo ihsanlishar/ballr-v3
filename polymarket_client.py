@@ -202,43 +202,25 @@ def find_grouped_matches(league_key, include_closed=False):
 
 
 def ensure_price_schema(db_path=DB_PATH):
-    """
-    Creates the price_updates table (live Polymarket data) alongside
-    the existing matches table (historical football-data.org results)
-    — two tables, one shared database.
-    """
-    conn = connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS price_updates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            asset_id TEXT,
-            price REAL,
-            side TEXT,
-            timestamp TEXT,
-            league TEXT
-        )
-    """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS price_asset_latest ON price_updates (asset_id, id DESC)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS price_timestamp ON price_updates (timestamp)")
-    conn.commit()
-    conn.close()
+    """One row per outcome; legacy tick history is left untouched for recovery."""
+    from contextlib import closing
+    with closing(connect(db_path)) as conn, conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS market_prices (
+            asset_id TEXT PRIMARY KEY NOT NULL,
+            price REAL NOT NULL CHECK (price >= 0 AND price <= 1),
+            side TEXT, timestamp TEXT NOT NULL, league TEXT NOT NULL
+        ) WITHOUT ROWID""")
+        conn.execute("CREATE INDEX IF NOT EXISTS market_prices_timestamp ON market_prices (timestamp)")
 
 
 def get_latest_market_price_with_timestamp(asset_id, db_path=DB_PATH):
-    conn = connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT price, timestamp FROM price_updates
-        WHERE asset_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-    """, (asset_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if row is None:
-        return None, None
-    return row[0], row[1]
+    from contextlib import closing
+    with closing(connect(db_path)) as conn:
+        row = conn.execute(
+            "SELECT price, timestamp FROM market_prices WHERE asset_id = ?",
+            (asset_id,),
+        ).fetchone()
+    return (None, None) if row is None else (row[0], row[1])
 
 
 def test_no_grouping_collisions(league_key, include_closed=True):

@@ -40,12 +40,155 @@ class RegressionTests(unittest.TestCase):
         self.addCleanup(self.network.stop)
         database.initialize()
         with closing(database.connect()) as conn, conn:
-            for table in ('matches', 'price_updates', 'season_sync'):
+            for table in ('matches', 'market_prices', 'season_sync', 'prediction_archive'):
                 conn.execute(f'DELETE FROM {table}')
+        from overload import RequestBudget
+        import predictions
+        import storage_guard
+        predictions._context_cache.clear()
+        predictions._prediction_cache.clear()
+        storage_guard._cached.clear()
+        storage_guard._cooldown.clear()
+        api.request_budget = RequestBudget()
+        api.backup_budget = RequestBudget(capacity=1, per_second=1/3600, concurrent=1)
         self.client = api.app.test_client()
 
     def seed(self, league='premier_league'):
         store_matches([fixture()], league, config.current_season())
+
+    def test_quote_cap_and_existing_outcome_updates(self):
+        from storage_guard import write_quotes
+        timestamp = datetime.now(timezone.utc).isoformat()
+        with patch.dict(os.environ, {'BALLR_MAX_QUOTES': '100'}):
+            write_quotes([(str(i), .5, 'BUY', timestamp, 'premier_league') for i in range(150)])
+            write_quotes([('0', .7, 'BUY', timestamp, 'premier_league'), ('extra', .6, 'BUY', timestamp, 'premier_league')])
+        with closing(database.connect()) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM market_prices').fetchone()[0], 100)
+            self.assertEqual(conn.execute("SELECT price FROM market_prices WHERE asset_id='0'").fetchone()[0], .7)
+
+    def test_disk_pressure_pauses_optional_writes(self):
+        from storage_guard import write_quotes, storage_status
+        from collections import namedtuple
+        usage = namedtuple('usage', 'total used free')(5*1024**3, 5*1024**3-1024, 1024)
+        with patch('storage_guard.shutil.disk_usage', return_value=usage), self.assertLogs('storage_guard', level='WARNING'):
+            self.assertTrue(storage_status(force=True)['optional_writes_paused'])
+            self.assertFalse(write_quotes([('1', .5, 'BUY', datetime.now(timezone.utc).isoformat(), 'premier_league')]))
+        with closing(database.connect()) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM market_prices').fetchone()[0], 0)
+
+    def test_write_error_backs_off_without_crashing_feed(self):
+        import sqlite3
+        from storage_guard import write_quotes, storage_status
+        with patch('database.connect', side_effect=sqlite3.OperationalError('database or disk is full')), self.assertLogs('storage_guard', level='ERROR'):
+            self.assertFalse(write_quotes([('1', .5, 'BUY', datetime.now(timezone.utc).isoformat(), 'premier_league')]))
+        self.assertTrue(storage_status(force=True)['optional_writes_paused'])
+
+    def test_saved_fixtures_expire_and_are_labelled(self):
+        self.seed()
+        store_matches([fixture(2, 'TIMED', '2099-09-01T12:00:00Z', None, None)], 'premier_league', config.current_season())
+        with patch('fixtures.get_season_matches', side_effect=RuntimeError('offline')):
+            saved = get_upcoming_fixtures('premier_league')
+            self.assertTrue(saved[0]['fixtures_stale'])
+            with closing(database.connect()) as conn, conn:
+                conn.execute("UPDATE season_sync SET synced_at=?", ((datetime.now(timezone.utc)-timedelta(hours=25)).isoformat(),))
+            with self.assertRaises(readiness.DataUnavailable):
+                get_upcoming_fixtures('premier_league')
+
+    def test_prediction_cache_is_stable_and_invalidates_corrected_results(self):
+        import predictions
+        self.seed()
+        future = {'home_team': 'Home FC', 'away_team': 'Away FC', 'utc_date': '2099-09-01T12:00:00Z'}
+        with patch('predictions.simulate_match', wraps=predictions.simulate_match) as simulate:
+            context = predictions.model_context('premier_league')
+            first = predictions.cached_prediction('premier_league', future, context)
+            second = predictions.cached_prediction('premier_league', future, context)
+            self.assertEqual(first, second)
+            self.assertEqual(simulate.call_count, 1)
+            predictions._prediction_cache.clear()
+            self.assertEqual(first, predictions.cached_prediction('premier_league', future, context))
+            store_matches([fixture(home=0, away=5)], 'premier_league', config.current_season())
+            updated = predictions.model_context('premier_league')
+            self.assertNotEqual(context[2], updated[2])
+            changed = predictions.cached_prediction('premier_league', future, updated)
+            self.assertNotEqual(first['home_rating'], changed['home_rating'])
+
+    def test_cache_entry_count_is_bounded(self):
+        cache = RequestCache(60, max_entries=3)
+        for i in range(100):
+            self.assertEqual(cache.get(i, lambda: i), i)
+        self.assertEqual(len(cache.entries), 3)
+        self.assertEqual(len(cache.locks), 64)
+
+    def test_overload_leaves_health_available_and_releases_slot(self):
+        from overload import RequestBudget
+        api.request_budget = RequestBudget(capacity=2, per_second=0, concurrent=1)
+        self.assertTrue(api.request_budget.acquire())
+        result = self.client.get('/api/performance')
+        self.assertEqual(result.status_code, 429)
+        self.assertEqual(result.headers['Retry-After'], '5')
+        self.assertEqual(self.client.get('/health').status_code, 200)
+        api.request_budget.release()
+        self.assertEqual(self.client.get('/api/performance').status_code, 200)
+        self.assertTrue(api.request_budget.slots.acquire(blocking=False))
+        api.request_budget.slots.release()
+
+    def test_archive_is_immutable_and_scores_only_after_results(self):
+        from performance import capture_predictions, performance_report
+        self.seed()
+        kickoff = (datetime.now(timezone.utc)+timedelta(hours=2)).isoformat()
+        store_matches([fixture(2, 'TIMED', kickoff, None, None)], 'premier_league', config.current_season())
+        self.assertEqual(capture_predictions(), 1)
+        with closing(database.connect()) as conn:
+            original = conn.execute('SELECT * FROM prediction_archive').fetchone()
+        self.assertLess(datetime.fromisoformat(original[5]), datetime.fromisoformat(kickoff))
+        self.assertEqual(capture_predictions(), 0)
+        self.assertEqual(performance_report('premier_league')['evaluated'], 0)
+        store_matches([fixture(2, 'FINISHED', kickoff, 2, 1)], 'premier_league', config.current_season())
+        result = performance_report('premier_league')
+        self.assertEqual(result['evaluated'], 1)
+        self.assertAlmostEqual(result['brier'], (original[7]-1)**2+original[8]**2+original[9]**2)
+        self.assertEqual(sum(b['count'] for b in result['calibration']), 3)
+        with closing(database.connect()) as conn:
+            self.assertEqual(conn.execute('SELECT * FROM prediction_archive').fetchone(), original)
+        store_matches([fixture(2, 'FINISHED', (datetime.now(timezone.utc)+timedelta(hours=3)).isoformat(), 2, 1)], 'premier_league', config.current_season())
+        result = performance_report('premier_league')
+        self.assertEqual(result['evaluated'], 0)
+        self.assertEqual(result['excluded'], 1)
+
+    def test_archive_skips_past_matches_and_stale_history(self):
+        from performance import capture_predictions
+        self.seed()
+        past = (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat()
+        future = (datetime.now(timezone.utc)+timedelta(hours=2)).isoformat()
+        store_matches([fixture(2, 'TIMED', past, None, None)], 'premier_league', config.current_season())
+        self.assertEqual(capture_predictions(), 0)
+        store_matches([fixture(3, 'TIMED', future, None, None)], 'premier_league', config.current_season())
+        with closing(database.connect()) as conn, conn:
+            conn.execute('UPDATE season_sync SET synced_at=?', ((datetime.now(timezone.utc)-timedelta(hours=3)).isoformat(),))
+        self.assertEqual(capture_predictions(), 0)
+
+    def test_backup_authentication_integrity_and_restore(self):
+        from performance import capture_predictions, performance_report
+        from scripts.operations_check import verify_backup
+        self.seed()
+        future = (datetime.now(timezone.utc)+timedelta(hours=2)).isoformat()
+        store_matches([fixture(2, 'TIMED', future, None, None)], 'premier_league', config.current_season())
+        capture_predictions()
+        token = 'test-secret-' * 4
+        with patch.dict(os.environ, {'BALLR_BACKUP_TOKEN': token}):
+            self.assertEqual(self.client.get('/api/admin/backup').status_code, 401)
+            self.assertEqual(self.client.get('/api/admin/backup', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
+            response = self.client.get('/api/admin/backup', headers={'Authorization': 'Bearer '+token})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            with tempfile.TemporaryDirectory() as folder:
+                restored = Path(folder)/'restored.db'
+                restored.write_bytes(response.data)
+                self.assertEqual(verify_backup(restored)['prediction_archive'], 1)
+                database.initialize(str(restored))
+                self.assertTrue(readiness.league_status('premier_league', str(restored))['ready'])
+                self.assertEqual(performance_report('premier_league', str(restored))['recorded'], 1)
+            self.assertEqual(self.client.get('/api/admin/backup', headers={'Authorization': 'Bearer '+token}).status_code, 429)
 
     def test_season_rollover(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -165,7 +308,7 @@ class RegressionTests(unittest.TestCase):
             {'asset_id': 'd', 'best_bid': '0.8', 'best_ask': '0.7'},
             {'asset_id': 'e', 'best_bid': '0.1', 'best_ask': '0.3'}]}))
         with closing(database.connect()) as conn:
-            rows = conn.execute('SELECT asset_id, price FROM price_updates ORDER BY id').fetchall()
+            rows = conn.execute('SELECT asset_id, price FROM market_prices ORDER BY asset_id').fetchall()
         self.assertEqual(rows, [('a', 0.5), ('e', 0.2)])
 
     def test_market_rejects_stale_or_incomplete_quotes(self):
@@ -184,18 +327,18 @@ class RegressionTests(unittest.TestCase):
     def test_indexes_and_wal(self):
         with closing(database.connect()) as conn:
             self.assertEqual(conn.execute('PRAGMA journal_mode').fetchone()[0], 'wal')
-            query = conn.execute("EXPLAIN QUERY PLAN SELECT price FROM price_updates WHERE asset_id = 'x' ORDER BY id DESC LIMIT 1").fetchall()
-            self.assertIn('price_asset_latest', str(query))
+            query = conn.execute("EXPLAIN QUERY PLAN SELECT price FROM market_prices WHERE asset_id = 'x'").fetchall()
+            self.assertIn('PRIMARY KEY', str(query))
 
     def test_pruning_preserves_recent_prices(self):
         from db_maintenance import prune_old_price_updates
         now = datetime.now(timezone.utc)
         with closing(database.connect()) as conn, conn:
-            conn.executemany('INSERT INTO price_updates (asset_id, timestamp) VALUES (?, ?)',
+            conn.executemany("INSERT INTO market_prices (asset_id, timestamp, price, league) VALUES (?, ?, 0.5, 'premier_league')",
                 [('old', (now - timedelta(hours=49)).isoformat()), ('new', now.isoformat())])
         self.assertEqual(prune_old_price_updates(), 1)
         with closing(database.connect()) as conn:
-            self.assertEqual(conn.execute('SELECT asset_id FROM price_updates').fetchall(), [('new',)])
+            self.assertEqual(conn.execute('SELECT asset_id FROM market_prices').fetchall(), [('new',)])
 
     def test_readiness_requires_all_leagues_and_fresh_sync(self):
         self.assertEqual(self.client.get('/health').status_code, 200)
@@ -236,13 +379,15 @@ class RegressionTests(unittest.TestCase):
         with patch.object(api, '_workers_started', False), patch('api.initialize') as init, \
              patch('live_feed.start_all_league_feeds') as feeds, \
              patch('results_refresh.start_results_refresh') as results, \
-             patch('db_maintenance.start_db_maintenance') as maintenance:
+             patch('db_maintenance.start_db_maintenance') as maintenance, \
+             patch('performance.start_prediction_archive') as archive:
             api.start_background_workers()
             api.start_background_workers()
             init.assert_called_once_with(config.DB_PATH)
             feeds.assert_called_once_with(config.DB_PATH)
             results.assert_called_once_with(config.DB_PATH)
             maintenance.assert_called_once_with(config.DB_PATH)
+            archive.assert_called_once_with(config.DB_PATH)
 
     def test_zero_goal_history_does_not_divide_by_zero(self):
         store_matches([fixture(home=0, away=0)], 'premier_league', config.current_season())
@@ -267,6 +412,40 @@ class RegressionTests(unittest.TestCase):
         self.assertFalse(Path(':memory-not-supported').exists())
         self.assertIn('Home FC', profiles['teams'])
 
+
+    def test_repeated_price_updates_keep_one_row_per_outcome(self):
+        import json
+        feed = LeagueFeed('premier_league')
+        with closing(database.connect()) as conn:
+            for index in range(1000):
+                feed._on_message(Mock(), json.dumps({'event_type': 'price_change', 'price_changes': [
+                    {'asset_id': 'same', 'best_bid': '0.2', 'best_ask': '0.4'}]}))
+            feed._on_message(Mock(), json.dumps({'event_type': 'price_change', 'price_changes': [
+                {'asset_id': 'same', 'best_bid': '0.6', 'best_ask': '0.8'}]}))
+            rows = conn.execute('SELECT asset_id, price FROM market_prices').fetchall()
+        self.assertEqual(rows, [('same', .7)])
+        from polymarket_client import get_latest_market_price_with_timestamp
+        self.assertEqual(get_latest_market_price_with_timestamp('same')[0], .7)
+
+    def test_export_preserves_football_and_omits_tick_history(self):
+        from recover_storage import export_football_data
+        self.seed()
+        with closing(database.connect()) as conn, conn:
+            conn.execute('CREATE TABLE IF NOT EXISTS price_updates (id INTEGER PRIMARY KEY, price REAL)')
+            conn.execute('INSERT INTO price_updates (price) VALUES (0.5)')
+        with tempfile.TemporaryDirectory() as folder:
+            output = str(Path(folder) / 'compact.db')
+            counts = export_football_data(config.DB_PATH, output)
+            self.assertEqual(counts, {'matches': 1, 'season_sync': 1, 'prediction_archive': 0})
+            import sqlite3
+            with closing(sqlite3.connect(output)) as conn:
+                self.assertEqual(conn.execute('SELECT COUNT(*) FROM market_prices').fetchone()[0], 0)
+                self.assertIsNone(conn.execute("SELECT name FROM sqlite_master WHERE name='price_updates'").fetchone())
+            with self.assertRaises(ValueError):
+                export_football_data(config.DB_PATH, output)
+        with closing(database.connect()) as conn, conn:
+            self.assertGreater(conn.execute('SELECT COUNT(*) FROM price_updates').fetchone()[0], 0)
+            conn.execute('DROP TABLE price_updates')
 
     def test_closed_event_lookup_does_not_contaminate_open_cache(self):
         import polymarket_client as markets

@@ -1,0 +1,45 @@
+name: Production checks and backup
+on:
+  schedule:
+    - cron: '23 * * * *'
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      backup:
+        description: Download a verified essential-data backup
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ballr-production-operations
+  cancel-in-progress: false
+jobs:
+  operations:
+    # Opt-in after the new code and backup token are deployed.
+    if: vars.BALLR_OPERATIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BALLR_URL: ${{ vars.BALLR_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Check production status
+        id: monitor
+        run: python scripts/operations_check.py monitor
+      - name: Download and verify backup
+        if: always() && (github.event.schedule == '17 6 * * *' || inputs.backup == true)
+        id: backup
+        env:
+          BALLR_BACKUP_TOKEN: ${{ secrets.BALLR_BACKUP_TOKEN }}
+        run: python scripts/operations_check.py backup
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.backup.outcome == 'success'
+        with:
+          name: ballr-essential-data-${{ github.run_id }}
+          path: ballr-backup.db
+          retention-days: 7
+          if-no-files-found: error

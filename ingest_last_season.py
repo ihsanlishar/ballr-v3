@@ -39,9 +39,17 @@ def store_matches(matches, league_key, season, db_path=DB_PATH):
                 raise ValueError('Provider returned an incomplete final result')
             row = conn.execute('SELECT status FROM matches WHERE id = ?', (match['id'],)).fetchone()
             newly_finished += int(status == 'FINISHED' and (row is None or row[0] != 'FINISHED'))
-            conn.execute('''INSERT OR REPLACE INTO matches
+            conn.execute('''INSERT INTO matches
                 (id, competition, season, utc_date, home_team, away_team,
-                 home_score, away_score, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                 home_score, away_score, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET competition=excluded.competition,
+                season=excluded.season, utc_date=excluded.utc_date,
+                home_team=excluded.home_team, away_team=excluded.away_team,
+                home_score=excluded.home_score, away_score=excluded.away_score, status=excluded.status
+                WHERE (competition, season, utc_date, home_team, away_team, home_score, away_score, status)
+                   IS NOT (excluded.competition, excluded.season, excluded.utc_date,
+                           excluded.home_team, excluded.away_team, excluded.home_score,
+                           excluded.away_score, excluded.status)''',
                 (match['id'], league_key, season, match['utcDate'], home, away,
                  score.get('home'), score.get('away'), status))
         conn.execute('INSERT OR REPLACE INTO season_sync VALUES (?, ?, ?)',

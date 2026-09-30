@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ballr — Performance</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+<header class="masthead">
+<a class="back-link" href="/">← All fixtures</a>
+<h1>Ballr's track record</h1>
+<p class="subtitle">Predictions saved before kickoff. Results measured afterward.</p>
+<label class="control"><span>League</span><select id="performance-league">
+<option value="premier_league">Premier League</option><option value="la_liga">La Liga</option>
+<option value="champions_league">Champions League</option></select></label>
+</header>
+<p id="performance-message" role="status">Loading performance…</p>
+<button id="performance-retry" type="button" hidden>Retry</button>
+<section id="performance-content" hidden>
+<div class="stats-strip">
+<div class="stat"><span class="stat-value" id="evaluated">—</span><span class="stat-label">matches evaluated</span></div>
+<div class="stat"><span class="stat-value" id="accuracy">—</span><span class="stat-label">most likely outcome correct</span></div>
+<div class="stat"><span class="stat-value" id="brier">—</span><span class="stat-label">Ballr Brier score</span></div>
+<div class="stat"><span class="stat-value" id="baseline">—</span><span class="stat-label">league baseline Brier score</span></div>
+</div>
+<p id="performance-range"></p>
+<h2>Do the probabilities match reality?</h2>
+<p>A calibrated 60% prediction should happen about 60% of the time. Each match contributes three outcomes: home, draw and away.</p>
+<div class="performance-table-wrap"><table class="performance-table"><thead><tr><th>Probability range</th><th>Forecasts</th><th>Average prediction</th><th>Observed frequency</th></tr></thead><tbody id="calibration"></tbody></table></div>
+</section>
+<details class="how-to" open><summary>How we measure</summary><div class="how-to-body">
+<p>Ballr checks every five minutes and saves the first available forecast within 24 hours of kickoff, while results data is fresh. A saved prediction is never overwritten. Recording begins when this feature is deployed; older matches are not retroactively added.</p>
+<p>The Brier score measures all three probabilities. Lower is better; equal one-third probabilities score 0.667. The baseline uses historical home/draw/away frequencies available to Ballr at the time of each prediction.</p>
+<p>Postponed matches with changed kickoff times or teams are excluded. This page evaluates the win/draw/win model only, not exact scorelines or betting returns. Small samples do not establish predictive skill.</p>
+<p id="model-version"></p>
+</div></details>
+</main>
+<script src="performance.js"></script>
+</body></html>

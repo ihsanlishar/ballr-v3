@@ -64,3 +64,39 @@ test('provider names are escaped in card HTML', () => {
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /&lt;img/);
 });
+
+
+test('saved fixture warning disappears after a fresh response', async () => {
+  let stale = true;
+  const h = harness(async () => response({predictions: [], data_status: {stale, last_results_sync: '2026-09-01T10:00:00Z'}}));
+  h.run("state.league = 'premier_league'");
+  await h.run('loadPredictions()');
+  assert.equal(h.elements.get('data-freshness').hidden, false);
+  assert.match(h.elements.get('data-freshness').textContent, /Using saved match data/);
+  stale = false;
+  await h.run('loadPredictions()');
+  assert.equal(h.elements.get('data-freshness').hidden, true);
+});
+
+test('performance page renders empty sample and exposes retry on failure', async () => {
+  const elements = new Map();
+  const element = () => ({hidden: true, textContent: '', value: 'premier_league',
+    children: [], addEventListener() {}, appendChild(child) {this.children.push(child);},
+    replaceChildren() {this.children = [];}});
+  const document = {getElementById(id) {if (!elements.has(id)) elements.set(id, element()); return elements.get(id);}, createElement: element};
+  let failure = false;
+  const context = vm.createContext({document, AbortController, console, setTimeout: () => 1, clearTimeout() {},
+    fetch: async () => failure ? response({error: 'Please retry'}, false) : response({
+      evaluated: 0, pending: 2, excluded: 0, accuracy: null, brier: null, baseline_brier: null,
+      model_version: 'test', first_recorded: null, calibration: [{range: '0–10%', count: 0, predicted: null, observed: null}]})});
+  vm.runInContext(fs.readFileSync('static/performance.js', 'utf8'), context);
+  await vm.runInContext('loadPerformance()', context);
+  assert.match(elements.get('performance-message').textContent, /No completed predictions/);
+  assert.equal(elements.get('brier').textContent, '—');
+  assert.equal(elements.get('calibration').children.length, 1);
+  assert.equal(elements.get('performance-content').hidden, false);
+  failure = true;
+  await vm.runInContext('loadPerformance()', context);
+  assert.equal(elements.get('performance-content').hidden, true);
+  assert.equal(elements.get('performance-retry').hidden, false);
+});

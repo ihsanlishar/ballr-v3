@@ -66,6 +66,10 @@ def build_current_ratings(competition, db_path=DB_PATH):
     rows = cursor.fetchall()
     conn.close()
 
+    return ratings_from_rows(rows)
+
+
+def ratings_from_rows(rows):
     ratings = {}
 
     for home_team, away_team, home_score, away_score, utc_date in rows:
