@@ -2,6 +2,7 @@
 const state = {
   league: null,
   predictions: [],
+  displayedLeague: null,
   searchTerm: '',
   firstLoadDone: false,
   requestId: 0,
@@ -202,17 +203,22 @@ async function loadPredictions() {
   const controller = new AbortController();
   state.controller = controller;
   state.loading = true;
-  state.predictions = [];
-  el('list-predictions').innerHTML = '';
-  el('stat-tracked').textContent = '—';
+  const keepExisting = state.displayedLeague === league;
+  if (!keepExisting) {
+    state.predictions = [];
+    state.displayedLeague = null;
+    el('list-predictions').innerHTML = '';
+    el('stat-tracked').textContent = '—';
+    el('data-freshness').hidden = true;
+    el('empty-predictions').hidden = true;
+  }
   el('last-refreshed').textContent = 'Updating predictions…';
   el('request-error').hidden = true;
-  el('data-freshness').hidden = true;
-  el('empty-predictions').hidden = true;
   try {
     const data = await fetchJSON(`/api/predictions?league=${encodeURIComponent(league)}`, controller);
     if (requestId !== state.requestId) return;
     state.predictions = data.predictions || [];
+    state.displayedLeague = league;
     const freshness = data.data_status;
     el('data-freshness').hidden = !freshness?.stale;
     el('data-freshness').textContent = freshness?.stale
@@ -224,7 +230,10 @@ async function loadPredictions() {
       `Last refreshed: ${new Date().toISOString().slice(0, 19).replace('T', ' ')} UTC`;
   } catch (err) {
     if (requestId !== state.requestId) return;
-    showError(err.name === 'AbortError' ? 'The request timed out. Please retry.' : err.message);
+    const message = err.name === 'AbortError' ? 'The request timed out. Please retry.' : err.message;
+    showError(keepExisting
+      ? `${message} Showing previously loaded data; predictions and market odds may be out of date.`
+      : message);
     el('last-refreshed').textContent = 'Update failed';
   } finally {
     if (requestId === state.requestId) {

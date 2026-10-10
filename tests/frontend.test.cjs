@@ -33,7 +33,7 @@ test('late league response cannot overwrite latest selection', async () => {
   assert.equal(h.run('state.predictions[0].league'), 'la_liga');
 });
 
-test('prediction failure clears old cards and shows retry error', async () => {
+test('failure without a loaded league clears old cards and shows retry error', async () => {
   const h = harness(async () => response({ error: 'Data unavailable' }, false));
   h.run("state.league = 'premier_league'; state.predictions = [{ old: true }]");
   await h.run('loadPredictions()');
@@ -99,4 +99,71 @@ test('performance page renders empty sample and exposes retry on failure', async
   await vm.runInContext('loadPerformance()', context);
   assert.equal(elements.get('performance-content').hidden, true);
   assert.equal(elements.get('performance-retry').hidden, false);
+});
+
+
+test('same-league refresh preserves cards until success and keeps the search filter', async () => {
+  const pending = [];
+  const h = harness(() => new Promise(resolve => pending.push(resolve)));
+  h.run("state.league = 'premier_league'; render = () => { el('list-predictions').innerHTML = state.predictions.map(p => p.home_team).join(','); };");
+  const initial = h.run('loadPredictions()');
+  pending.shift()(response({predictions: [{home_team: 'Old team'}]}));
+  await initial;
+  h.run("state.searchTerm = 'team'");
+  const refresh = h.run('loadPredictions()');
+  assert.equal(h.elements.get('list-predictions').innerHTML, 'Old team');
+  assert.equal(h.elements.get('stat-tracked').textContent, 1);
+  pending.shift()(response({predictions: [{home_team: 'New team'}]}));
+  await refresh;
+  assert.equal(h.elements.get('list-predictions').innerHTML, 'New team');
+  assert.equal(h.run('state.searchTerm'), 'team');
+});
+
+test('failed refresh retains cards and freshness warning; retry clears the error', async () => {
+  let failure = false;
+  const h = harness(async () => failure ? response({error: 'Offline'}, false)
+    : response({predictions: [{home_team: 'Home'}], data_status: {stale: true}}));
+  h.run("state.league = 'premier_league'; render = () => { el('list-predictions').innerHTML = 'existing cards'; };");
+  await h.run('loadPredictions()');
+  failure = true;
+  await h.run('loadPredictions()');
+  assert.equal(h.elements.get('list-predictions').innerHTML, 'existing cards');
+  assert.equal(h.run('state.predictions.length'), 1);
+  assert.equal(h.elements.get('data-freshness').hidden, false);
+  assert.match(h.elements.get('error-message').textContent, /market odds may be out of date/);
+  assert.equal(h.elements.get('request-error').hidden, false);
+  failure = false;
+  await h.run('loadPredictions()');
+  assert.equal(h.elements.get('request-error').hidden, true);
+});
+
+test('switching leagues clears retained cards and ignores the old refresh failure', async () => {
+  const pending = [];
+  const h = harness(() => new Promise(resolve => pending.push(resolve)));
+  h.run("state.league = 'premier_league'; render = () => { el('list-predictions').innerHTML = state.predictions.map(p => p.league).join(','); };");
+  const initial = h.run('loadPredictions()');
+  pending.shift()(response({predictions: [{league: 'premier_league'}]}));
+  await initial;
+  const refresh = h.run('loadPredictions()');
+  h.run("state.league = 'la_liga'");
+  const switched = h.run('loadPredictions()');
+  assert.equal(h.elements.get('list-predictions').innerHTML, '');
+  assert.equal(h.run('state.predictions.length'), 0);
+  pending[1](response({predictions: [{league: 'la_liga'}]}));
+  await switched;
+  pending[0](response({error: 'Old request failed'}, false));
+  await refresh;
+  assert.equal(h.elements.get('list-predictions').innerHTML, 'la_liga');
+  assert.equal(h.elements.get('request-error').hidden, true);
+});
+
+test('successful empty refresh replaces previously displayed predictions', async () => {
+  let predictions = [{home_team: 'Home'}];
+  const h = harness(async () => response({predictions}));
+  h.run("state.league = 'premier_league'; render = () => { el('list-predictions').innerHTML = state.predictions.map(p => p.home_team).join(','); };");
+  await h.run('loadPredictions()');
+  predictions = [];
+  await h.run('loadPredictions()');
+  assert.equal(h.elements.get('list-predictions').innerHTML, '');
+  assert.equal(h.elements.get('stat-tracked').textContent, 0);
 });
