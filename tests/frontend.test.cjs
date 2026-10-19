@@ -167,3 +167,35 @@ test('successful empty refresh replaces previously displayed predictions', async
   assert.equal(h.elements.get('list-predictions').innerHTML, '');
   assert.equal(h.elements.get('stat-tracked').textContent, 0);
 });
+
+test('match cards expose a native link with an escaped destination', () => {
+  const h = harness(async () => response({}));
+  const card = h.run(`buildCard({home_team:'A & B', away_team:'C', league:'premier_league',
+    utc_date:'2099-01-01', home_pct:40, draw_pct:30, away_pct:30,
+    home_rating:1500, away_rating:1500, home_xg:1, away_xg:1, market:null}, 0)`);
+  assert.match(card.innerHTML, /<h3 class="card-title"><a class="match-title-link" href="\/match\?/);
+  assert.match(card.innerHTML, /&amp;home=A\+%26\+B/);
+  assert.equal(card.tabIndex, undefined); // The anchor supplies native keyboard navigation.
+});
+
+test('search empty state explains a missing team rather than missing fixtures', () => {
+  const h = harness(async () => response({}));
+  h.run("state.predictions = [{home_team:'Arsenal', away_team:'Chelsea'}]; state.searchTerm='Liverpool'; el('request-error').hidden=true; render();");
+  assert.match(h.elements.get('empty-predictions').textContent, /No teams match your search/);
+  assert.equal(h.elements.get('empty-predictions').hidden, false);
+});
+
+test('pages provide skip navigation and a single labelled main destination', () => {
+  for (const page of ['index', 'match', 'performance']) {
+    const html = fs.readFileSync(`static/${page}.html`, 'utf8');
+    assert.match(html, /class="skip-link" href="#main-content"/);
+    assert.equal((html.match(/<main\b/g) || []).length, 1);
+    assert.match(html, /<main[^>]*id="main-content"[^>]*tabindex="-1"/);
+    assert.match(html, /<nav aria-label="Main navigation">/);
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+    assert.equal(ids.length, new Set(ids).size);
+  }
+  const html = fs.readFileSync('static/index.html', 'utf8');
+  assert.match(html, /<label[^>]*for="search-input"/);
+  assert.match(html, /<label[^>]*for="league-select"/);
+});

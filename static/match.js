@@ -15,7 +15,7 @@ function fmtDate(iso) {
 
 function formBadges(form) {
   if (!form || form === '—') return '<span class="form-empty">No recent results</span>';
-  return [...form].map((result) => `<span class="form-badge ${result.toLowerCase()}">${result}</span>`).join('');
+  return [...form].map((result) => `<span class="form-badge ${result.toLowerCase()}" aria-label="${({W: 'Win', D: 'Draw', L: 'Loss'})[result] || 'Unknown result'}">${result}</span>`).join('');
 }
 
 function marketPanel(p) {
@@ -65,20 +65,20 @@ function marketPanel(p) {
 
 function scoreHeatmap(p) {
   const maxValue = Math.max(...p.score_matrix.flat());
-  const headings = Array.from({ length: p.max_display_goals + 1 }, (_, goal) => `<th>${goal}</th>`).join('');
+  const headings = Array.from({ length: p.max_display_goals + 1 }, (_, goal) => `<th scope="col">${goal}</th>`).join('');
   const rows = p.score_matrix.map((row, homeGoals) => {
     const cells = row.map((probability, awayGoals) => {
       const intensity = Math.max(0.08, probability / maxValue);
       return `<td style="--heat:${intensity}" title="${homeGoals}–${awayGoals}: ${probability}%">${probability.toFixed(1)}%</td>`;
     }).join('');
-    return `<tr><th>${homeGoals}</th>${cells}</tr>`;
+    return `<tr><th scope="row">${homeGoals}</th>${cells}</tr>`;
   }).join('');
 
   return `
     <section class="detail-panel heatmap-panel">
       <div class="section-heading"><div><p class="eyebrow">Scoreline distribution</p><h2>Exact-score probabilities</h2></div><p>0–${p.max_display_goals} grid covers ${p.shown_probability}% of the model</p></div>
       <div class="score-axis"><span>${escapeHtml(p.home_team)} goals ↓</span><span>${escapeHtml(p.away_team)} goals →</span></div>
-      <div class="score-grid-wrap"><table class="score-grid"><thead><tr><th></th>${headings}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="score-grid-wrap"><table class="score-grid"><caption class="sr-only">Exact-score probabilities; rows are home goals and columns are away goals</caption><thead><tr><th></th>${headings}</tr></thead><tbody>${rows}</tbody></table></div>
     </section>`;
 }
 

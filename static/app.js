@@ -89,33 +89,13 @@ function marketComparisonHTML(p) {
 }
 
 function buildCard(p, index) {
-  const card = document.createElement('div');
-  card.className = 'match-card card-enter';
-  card.tabIndex = 0;
-  card.setAttribute('role', 'link');
-  card.setAttribute('aria-label', `Open prediction details for ${p.home_team} versus ${p.away_team}`);
-  card.style.animationDelay = `${Math.min(index * 0.05, 0.4)}s`;
-  card.addEventListener('animationend', (e) => {
-    if (e.animationName === 'card-in') {
-      card.classList.remove('card-enter');
-      card.style.animationDelay = '';
-    }
-  });
-
+  const card = document.createElement('article');
+  card.className = 'match-card';
   const uncertain = !p.home_rating_known || !p.away_rating_known;
-  const openMatch = () => { window.location.href = matchUrl(p); };
-  card.addEventListener('click', openMatch);
-  card.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      openMatch();
-    }
-  });
-
   card.innerHTML = `
     <div class="card-top">
       <div>
-        <p class="card-title">${escapeHtml(p.home_team)} vs. ${escapeHtml(p.away_team)}</p>
+        <h3 class="card-title"><a class="match-title-link" href="${escapeHtml(matchUrl(p))}">${escapeHtml(p.home_team)} <span class="versus">vs</span> ${escapeHtml(p.away_team)}</a></h3>
         <p class="card-meta">${fmtDate(p.utc_date)}</p>
       </div>
       ${uncertain ? '<div class="warn-badge">LIMITED DATA</div>' : ''}
@@ -151,7 +131,7 @@ function buildCard(p, index) {
       <div><span>Model xG</span><b>${p.home_xg} – ${p.away_xg}</b></div>
       <div><span>Elo</span><b>${p.home_rating} – ${p.away_rating}</b></div>
     </div>
-    <div class="card-link">Open full match prediction <span aria-hidden="true">→</span></div>
+    <div class="card-link" aria-hidden="true">Match analysis <span>↗</span></div>
     <div class="date-row">${uncertain ? 'One or both teams have limited match history this season — prediction is less reliable.' : ''}</div>
   `;
 
@@ -175,6 +155,7 @@ function render() {
 
   if (!filtered.length) {
     if (state.loading || !el('request-error').hidden) { emptyNote.hidden = true; return; }
+    emptyNote.textContent = state.searchTerm ? 'No teams match your search. Try another name.' : 'No upcoming fixtures found for this league yet.';
     emptyNote.hidden = false;
     return;
   }

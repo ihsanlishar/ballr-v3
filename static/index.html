@@ -5,48 +5,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ballr — Match Predictions</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="site-header-inner">
+<a class="wordmark" href="/" aria-label="Ballr home"><span class="brand-symbol" aria-hidden="true">b.</span>ballr<span class="wordmark-note">FOOTBALL ANALYTICS</span></a>
+<nav aria-label="Main navigation"><a href="/" aria-current="page">Fixtures</a><a href="/performance" >Performance</a></nav>
+</div></header>
 
-<div id="loader" class="loader">
-  <div class="loader-inner">
-    <div class="loader-wordmark">BALLR</div>
-    <div class="scan-track"><div class="scan-line"></div></div>
-    <p class="loader-caption">Running the simulation…</p>
-  </div>
-</div>
-
-<div class="app">
-
+<main class="app" id="main-content" tabindex="-1">
   <header class="masthead">
-    <div class="masthead-top">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <h1>Ballr</h1>
-      </div>
-      <div class="controls">
-        <label class="control">
-          <span>League</span>
-          <select id="league-select"></select>
-        </label>
-      </div>
-    </div>
-    <p class="subtitle">Elo + Monte Carlo predictions for upcoming fixtures</p>
-
-    <div class="stats-strip">
-      <div class="stat"><span class="stat-value" id="stat-tracked">0</span><span class="stat-label">upcoming fixtures</span></div>
-    </div>
+    <p class="eyebrow">THE MATCHDAY OUTLOOK</p>
+    <h1>A clearer view of the game.</h1>
+    <p class="subtitle">Explore match predictions. Compare the market. Make up your own mind.</p>
+    <div class="intro-note"><span class="intro-rule" aria-hidden="true"></span>Powered by match results, Elo ratings &amp; statistical models.</div>
   </header>
-
-  <p><a class="back-link" href="/performance">View the model’s track record →</a></p>
-  <p id="data-freshness" role="status" hidden></p>
-  <div class="search-row">
-    <input type="text" id="search-input" placeholder="Filter by team…" autocomplete="off">
-  </div>
-
+  <section class="fixture-section" aria-labelledby="fixtures-title">
+    <div class="fixtures-heading"><h2 id="fixtures-title">Upcoming fixtures <span class="count-badge" id="stat-tracked">—</span></h2><span class="timezone-note">Kickoff times in your local timezone</span></div>
+    <div class="filter-bar">
+      <label class="control" for="league-select"><span>Competition</span><select id="league-select"></select></label>
+      <label class="control search-control" for="search-input"><span>Find a team</span><input type="text" id="search-input" placeholder="Search by team name" autocomplete="off"></label>
+    </div>
+    <div id="loader" class="loader" role="status"><span class="loading-dot" aria-hidden="true"></span>Loading fixtures…</div>
+    <p id="data-freshness" role="status" hidden></p>
+    <div id="request-error" class="error-copy" role="alert" hidden><p id="error-message"></p><button id="retry-load" type="button">Try again</button></div>
+    <div class="card-list" id="list-predictions"></div>
+    <p class="empty-note" id="empty-predictions" role="status" hidden>No upcoming fixtures found for this league yet.</p>
+    <p class="refresh-note" id="last-refreshed" role="status"></p>
+  </section>
   <details class="how-to">
     <summary>How to read this</summary>
     <div class="how-to-body">
@@ -54,7 +41,7 @@
       <ul>
         <li><strong>Model</strong> — an Elo rating system built from each team's available historical and current-season results, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
         <li><strong>Scorelines and xG</strong> — a separate Poisson projection combines recent scoring, opponent strength, defensive clean-sheet record, Elo, win rate, goal difference, and form to produce expected goals and exact-score probabilities. It is a model projection, not event-level xG.</li>
-        <li><strong>Home advantage</strong> is factored in, based on real backtested evidence, not just assumed.</li>
+        <li><strong>Home advantage</strong> is included in the model. Its effect should be assessed against completed matches.</li>
         <li><strong>Known limitation:</strong> ratings are based purely on available match results — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
         <li><strong>vs. the market</strong> — when available, each card also shows recent Polymarket odds for the same fixture, and the gap between Ballr's view and the market's.</li>
       </ul>
@@ -62,17 +49,10 @@
     </div>
   </details>
 
-  <div id="request-error" class="error-copy" role="alert" hidden>
-    <p id="error-message"></p><button id="retry-load" type="button">Retry</button>
-  </div>
-  <div class="card-list" id="list-predictions"></div>
-  <p class="empty-note" id="empty-predictions" hidden>No upcoming fixtures found for this league yet.</p>
-
-  <footer class="footer">
-    <span id="last-refreshed"></span>
-  </footer>
-</div>
+  <aside class="track-record-link"><div><p class="eyebrow">CHECK THE EVIDENCE</p><h2>How does the model measure up?</h2><p>See predictions recorded before kickoff, measured against the final result.</p></div><a class="button-link" href="/performance">Explore performance <span aria-hidden="true">↗</span></a></aside>
+</main>
 
 <script src="app.js"></script>
+<footer class="site-footer"><span>Ballr · Football, in perspective.</span><span>Probabilities, not promises. Not betting advice.</span></footer>
 </body>
 </html>

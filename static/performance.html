@@ -6,10 +6,15 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="app">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="site-header-inner">
+<a class="wordmark" href="/" aria-label="Ballr home"><span class="brand-symbol" aria-hidden="true">b.</span>ballr<span class="wordmark-note">FOOTBALL ANALYTICS</span></a>
+<nav aria-label="Main navigation"><a href="/" >Fixtures</a><a href="/performance" aria-current="page">Performance</a></nav>
+</div></header>
+<main class="app performance-page" id="main-content" tabindex="-1">
 <header class="masthead">
 <a class="back-link" href="/">← All fixtures</a>
-<h1>Ballr's track record</h1>
+<p class="eyebrow">ACCOUNTABILITY, NOT HYPE</p><h1>The model. On the record.</h1>
 <p class="subtitle">Predictions saved before kickoff. Results measured afterward.</p>
 <label class="control"><span>League</span><select id="performance-league">
 <option value="premier_league">Premier League</option><option value="la_liga">La Liga</option>
@@ -27,7 +32,7 @@
 <p id="performance-range"></p>
 <h2>Do the probabilities match reality?</h2>
 <p>A calibrated 60% prediction should happen about 60% of the time. Each match contributes three outcomes: home, draw and away.</p>
-<div class="performance-table-wrap"><table class="performance-table"><thead><tr><th>Probability range</th><th>Forecasts</th><th>Average prediction</th><th>Observed frequency</th></tr></thead><tbody id="calibration"></tbody></table></div>
+<div class="performance-table-wrap"><table class="performance-table"><caption class="sr-only">Prediction calibration by probability range</caption><thead><tr><th scope="col">Probability range</th><th scope="col">Forecasts</th><th scope="col">Average prediction</th><th scope="col">Observed frequency</th></tr></thead><tbody id="calibration"></tbody></table></div>
 </section>
 <details class="how-to" open><summary>How we measure</summary><div class="how-to-body">
 <p>Ballr checks every five minutes and saves the first available forecast within 24 hours of kickoff, while results data is fresh. A saved prediction is never overwritten. Recording begins when this feature is deployed; older matches are not retroactively added.</p>
@@ -37,4 +42,5 @@
 </div></details>
 </main>
 <script src="performance.js"></script>
+<footer class="site-footer"><span>Ballr · Football, in perspective.</span><span>Probabilities, not promises. Not betting advice.</span></footer>
 </body></html>
