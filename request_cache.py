@@ -16,6 +16,14 @@ class RequestCache:
         with self.guard:
             self.entries.clear()
 
+    def prune_expired(self):
+        """Release unused payloads even when their keys are never requested again."""
+        now = time.monotonic()
+        with self.guard:
+            expired = [key for key, entry in self.entries.items() if entry[0] <= now]
+            for key in expired:
+                del self.entries[key]
+
     def get(self, key, fetch):
         lock = self.locks[hash(key) % len(self.locks)]
         if not lock.acquire(timeout=20):

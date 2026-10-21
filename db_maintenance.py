@@ -41,6 +41,11 @@ def _prune_loop(db_path=DB_PATH):
             from storage_guard import storage_status
             state = storage_status(db_path, force=True)
             report('storage', state['state'])
+            from football_client import _cache as football_cache
+            from polymarket_client import _event_cache
+            from predictions import _context_cache, _prediction_cache
+            for cache in (football_cache, _event_cache, _context_cache, _prediction_cache):
+                cache.prune_expired()
             prune_old_price_updates(db_path)
             with closing(connect(db_path)) as conn:
                 conn.execute('PRAGMA wal_checkpoint(PASSIVE)')

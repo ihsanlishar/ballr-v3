@@ -33,7 +33,17 @@ def get_season_matches(comp_code, season=None):
             matches = response.json()['matches']
             if not isinstance(matches, list):
                 raise ValueError('Invalid football-data response')
-            return matches
+            # Retain only fields consumed by fixtures and result ingestion.
+            return [{
+                'id': match.get('id'), 'utcDate': match.get('utcDate'),
+                'status': match.get('status'),
+                'homeTeam': {'name': (match.get('homeTeam') or {}).get('name')},
+                'awayTeam': {'name': (match.get('awayTeam') or {}).get('name')},
+                'score': {'fullTime': {
+                    key: (((match.get('score') or {}).get('fullTime') or {}).get(key))
+                    for key in ('home', 'away')
+                }},
+            } for match in matches]
         finally:
             _request_lock.release()
 

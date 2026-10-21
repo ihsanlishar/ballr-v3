@@ -58,7 +58,14 @@ def _fetch_events_uncached(tag_slug, closed):
         if not data:
             break
 
-        all_events.extend(data)
+        # Provider descriptions, images, order books and metadata are not used.
+        # Compact each page before retaining it or fetching the next one.
+        all_events.extend({
+            'id': event.get('id'), 'title': event.get('title'),
+            'markets': [{key: market.get(key) for key in (
+                'clobTokenIds', 'outcomes', 'outcomePrices', 'question', 'closed'
+            )} for market in event.get('markets', [])],
+        } for event in data)
         offset += page_size
 
         if len(data) < page_size:
