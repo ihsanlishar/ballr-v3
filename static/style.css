@@ -183,22 +183,28 @@ button:active, .button-link:active { transform: translateY(1px); }
 /* Compact dashboard and a decorative pitch, animated only with transforms. */
 body { isolation: isolate; }
 .pitch-backdrop { position: fixed; z-index: -1; pointer-events: none; inset: 100px -80px auto auto;
- width: min(900px, 110vw); height: 620px; opacity: .09; overflow: hidden;
+ width: min(900px, 110vw); height: 620px; opacity: .28; overflow: hidden;
  border: 1px solid #64b8eb; border-radius: 3px;
  background: linear-gradient(90deg, transparent calc(50% - .5px), #64b8eb 50%, transparent calc(50% + .5px)); }
 .pitch-backdrop::before { content: ''; position: absolute; width: 180px; height: 180px;
  border: 1px solid #64b8eb; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .pitch-backdrop::after { content: ''; position: absolute; inset: 25% 0; border: 1px solid #64b8eb; border-left: 0; border-right: 0; }
-.pitch-backdrop span { position: absolute; left: 10%; top: 48%; width: 7px; height: 7px;
- border-radius: 50%; background: #a2d969; animation: pitch-run 26s ease-in-out infinite alternate; }
-@keyframes pitch-run { 0% { transform: translate(0, -100px); } 45% { transform: translate(220px, 100px); } 100% { transform: translate(500px, -40px); } }
+.pitch-backdrop span { position: absolute; left: -34%; top: 22%; width: 34%; height: 2px;
+ background: linear-gradient(90deg, transparent, #64b8eb);
+ animation: pitch-run 16s linear infinite; }
+.pitch-backdrop span::after { content: ''; position: absolute; right: 0; top: -4px;
+ width: 10px; height: 10px; border-radius: 50%; background: #9edbff;
+ box-shadow: 0 0 16px 3px #64b8eb80; }
+.pitch-backdrop span:nth-child(2) { top: 52%; animation-delay: -6s; animation-duration: 20s;
+ background: linear-gradient(90deg, transparent, #a2d969); }
+.pitch-backdrop span:nth-child(2)::after { background: #a2d969; box-shadow: 0 0 16px 3px #a2d96980; }
+.pitch-backdrop span:nth-child(3) { top: 82%; animation-delay: -12s; animation-duration: 18s; }
+@keyframes pitch-run { from { transform: translateX(0); } to { transform: translateX(400%); } }
 body.motion-paused .pitch-backdrop span { animation-play-state: paused; }
 .app { padding-top: 28px; }
 .fixture-section { border-top: 0; padding-top: 0; }
 .performance-page .masthead { padding: 0 0 12px; }
 .performance-page .masthead h1 { font-size: 26px; letter-spacing: -.5px; }
 .match-hero h1 { font-size: clamp(24px, 3vw, 32px); letter-spacing: -.7px; }
-.motion-toggle { min-height: 44px; padding: 6px 10px; color: var(--text-muted); border-color: var(--card-border); background: var(--bg); font-size: 12px; font-weight: 400; }
-.motion-toggle:hover { background: var(--bg-raise); color: var(--text); }
-@media (prefers-reduced-motion: reduce) { .pitch-backdrop span { animation: none; }.motion-toggle { display: none; } }
+@media (prefers-reduced-motion: reduce) { .pitch-backdrop span { animation: none; } }
 @media (forced-colors: active) { .pitch-backdrop { display: none; } }
