@@ -170,3 +170,12 @@ button:active, .button-link:active { transform: translateY(1px); }
  *, *::before, *::after { animation: none !important; transition: none !important; }
  .match-card:hover, button:active, .button-link:active { transform: none; }
 }
+
+/* Keep the first view focused; deeper analysis lives on the match page. */
+.match-takeaway { font-size: 14px; color: var(--text-muted); margin: 0 0 20px; }
+.match-takeaway strong { color: var(--text); font-weight: 600; }
+.draw-help { font-weight: 400; }
+.match-details { margin-top: 24px; border-top: 1px solid var(--card-border); }
+.match-details > summary { color: var(--home); padding: 18px 0; }
+
+.simple-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }

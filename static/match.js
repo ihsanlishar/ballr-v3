@@ -83,6 +83,7 @@ function scoreHeatmap(p) {
 }
 
 function render(p) {
+  const detailsOpen = document.getElementById('match-details')?.open || false;
   const scores = p.top_scorelines.map((score) => `
     <div class="score-pick"><b>${score.home_goals}–${score.away_goals}</b><span>${score.probability.toFixed(1)}%</span></div>`).join('');
   const uncertainty = !p.home_rating_known || !p.away_rating_known
@@ -97,28 +98,29 @@ function render(p) {
     </header>
 
     <section class="detail-panel outcome-panel">
-      <div class="section-heading"><div><p class="eyebrow">Predicted outcome</p><h2>Win / Draw / Win</h2></div><p>Elo + Monte Carlo model</p></div>
+      <div class="section-heading"><div><p class="eyebrow">Predicted outcome</p><h2>Who’s likely to win?</h2></div><p>Estimates, not guarantees</p></div>
       <div class="large-prob-bar"><div class="prob-seg home" style="width:${p.home_pct}%"></div><div class="prob-seg draw" style="width:${p.draw_pct}%"></div><div class="prob-seg away" style="width:${p.away_pct}%"></div></div>
       <div class="outcome-values">
         <div><span>${escapeHtml(p.home_team)} win</span><b>${p.home_pct}%</b></div>
-        <div><span>Draw</span><b>${p.draw_pct}%</b></div>
+        <div><span>Draw (tie)</span><b>${p.draw_pct}%</b></div>
         <div><span>${escapeHtml(p.away_team)} win</span><b>${p.away_pct}%</b></div>
       </div>
     </section>
 
+    <details class="match-details" id="match-details" ${detailsOpen ? 'open' : ''}><summary>Explore scores, recent results &amp; market odds</summary>
     ${marketPanel(p)}
 
     <section class="detail-grid">
-      <div class="detail-panel form-panel"><p class="eyebrow">Current form</p><h2>${escapeHtml(p.home_team)}</h2><div class="form-badges">${formBadges(p.home_form)}</div><p>Most recent results first</p></div>
-      <div class="detail-panel form-panel"><p class="eyebrow">Current form</p><h2>${escapeHtml(p.away_team)}</h2><div class="form-badges">${formBadges(p.away_form)}</div><p>Most recent results first</p></div>
+      <div class="detail-panel form-panel"><p class="eyebrow">Current form</p><h2>${escapeHtml(p.home_team)}</h2><div class="form-badges">${formBadges(p.home_form)}</div><p>W = win · D = draw · L = loss. Latest first.</p></div>
+      <div class="detail-panel form-panel"><p class="eyebrow">Current form</p><h2>${escapeHtml(p.away_team)}</h2><div class="form-badges">${formBadges(p.away_form)}</div><p>W = win · D = draw · L = loss. Latest first.</p></div>
     </section>
 
     <section class="detail-panel model-metrics">
-      <div><span>Model xG</span><b>${p.home_xg} <i>–</i> ${p.away_xg}</b></div>
-      <div><span>Elo rating</span><b>${p.home_rating} <i>–</i> ${p.away_rating}</b></div>
+      <div><span>Expected goals (model)</span><b>${p.home_xg} <i>–</i> ${p.away_xg}</b></div>
+      <div><span>Team strength (Elo)</span><b>${p.home_rating} <i>–</i> ${p.away_rating}</b></div>
       <div class="likely-scores"><span>Likeliest scores</span><div>${scores}</div></div>
     </section>
-    ${scoreHeatmap(p)}`;
+    ${scoreHeatmap(p)}</details>`;
 }
 
 async function init() {

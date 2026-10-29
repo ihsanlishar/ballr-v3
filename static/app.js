@@ -88,6 +88,16 @@ function marketComparisonHTML(p) {
   `;
 }
 
+function outcomeSummary(p) {
+  const outcomes = [
+    { label: `${p.home_team} win`, probability: p.home_pct },
+    { label: 'Draw (tie)', probability: p.draw_pct },
+    { label: `${p.away_team} win`, probability: p.away_pct },
+  ].sort((a, b) => b.probability - a.probability);
+  if (outcomes[0].probability === outcomes[1].probability) return 'No single favorite';
+  return `Most likely: <strong>${escapeHtml(outcomes[0].label)}</strong>`;
+}
+
 function buildCard(p, index) {
   const card = document.createElement('article');
   card.className = 'match-card';
@@ -101,7 +111,8 @@ function buildCard(p, index) {
       ${uncertain ? '<div class="warn-badge">LIMITED DATA</div>' : ''}
     </div>
 
-    <div class="model-label">Ballr's prediction</div>
+    <p class="match-takeaway">${outcomeSummary(p)}</p>
+    <div class="model-label">Chance of each result</div>
     <div class="prob-bar">
       <div class="prob-seg home" style="width:${p.home_pct}%"></div>
       <div class="prob-seg draw" style="width:${p.draw_pct}%"></div>
@@ -110,29 +121,23 @@ function buildCard(p, index) {
     <div class="outcome-legend">
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--home)"></span>
-        <span class="legend-name">${escapeHtml(p.home_team)}</span>
+        <span class="legend-name">Home win</span>
         <span class="legend-value">${p.home_pct}%</span>
       </div>
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--draw)"></span>
-        <span class="legend-name">Draw</span>
+        <span class="legend-name">Draw <span class="draw-help">(tie)</span></span>
         <span class="legend-value">${p.draw_pct}%</span>
       </div>
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--away)"></span>
-        <span class="legend-name">${escapeHtml(p.away_team)}</span>
+        <span class="legend-name">Away win</span>
         <span class="legend-value">${p.away_pct}%</span>
       </div>
     </div>
 
-    ${marketComparisonHTML(p)}
-
-    <div class="metrics-row">
-      <div><span>Model xG</span><b>${p.home_xg} – ${p.away_xg}</b></div>
-      <div><span>Elo</span><b>${p.home_rating} – ${p.away_rating}</b></div>
-    </div>
-    <div class="card-link" aria-hidden="true">Match analysis <span>↗</span></div>
-    <div class="date-row">${uncertain ? 'One or both teams have limited match history this season — prediction is less reliable.' : ''}</div>
+    <div class="card-link" aria-hidden="true">View match <span>↗</span></div>
+    <div class="date-row">${uncertain ? 'Less match history available.' : ''}</div>
   `;
 
   return card;

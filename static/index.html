@@ -19,9 +19,9 @@
 <main class="app" id="main-content" tabindex="-1">
   <header class="masthead">
     <p class="eyebrow">BALLR / MATCHDAY INTELLIGENCE</p>
-    <h1>Football. Read the game.</h1>
-    <p class="subtitle">The fixtures. The probabilities. Your perspective.</p>
-    <div class="intro-note"><span class="intro-rule" aria-hidden="true"></span>Powered by match results, Elo ratings &amp; statistical models.</div>
+    <h1>Who’s likely to win?</h1>
+    <p class="subtitle">Pick a league. Find a match. See the chances.</p>
+    <div class="intro-note"><span class="intro-rule" aria-hidden="true"></span>Predictions, not guarantees. The first team plays at home.</div>
   </header>
   <section class="fixture-section" aria-labelledby="fixtures-title">
     <div class="fixtures-heading"><h2 id="fixtures-title">Upcoming fixtures <span class="count-badge" id="stat-tracked">—</span></h2><span class="timezone-note">Kickoff times in your local timezone</span></div>
@@ -39,19 +39,12 @@
   <details class="how-to">
     <summary>How to read this</summary>
     <div class="how-to-body">
-      <p>Each card is one upcoming <strong>match</strong>. The bar shows Ballr's predicted Win/Draw/Win split.</p>
-      <ul>
-        <li><strong>Model</strong> — an Elo rating system built from each team's available historical and current-season results, combined with a Monte Carlo simulation (thousands of simulated outcomes) to produce a probability for each result.</li>
-        <li><strong>Scorelines and xG</strong> — a separate Poisson projection combines recent scoring, opponent strength, defensive clean-sheet record, Elo, win rate, goal difference, and form to produce expected goals and exact-score probabilities. It is a model projection, not event-level xG.</li>
-        <li><strong>Home advantage</strong> is included in the model. Its effect should be assessed against completed matches.</li>
-        <li><strong>Known limitation:</strong> ratings are based purely on available match results — squad changes, transfers, and injuries aren't yet factored in. Early-season predictions for teams with few games played (marked below) are less reliable.</li>
-        <li><strong>vs. the market</strong> — when available, each card also shows recent Polymarket odds for the same fixture, and the gap between Ballr's view and the market's.</li>
-      </ul>
-      <p class="disclaimer">Not betting advice — a model's opinion, nothing more. See the performance page for predictions recorded before kickoff and evaluated after results arrive.</p>
-    </div>
+      <p>The three percentages show the chance of a home win, a draw (tie), or an away win. A 60% chance means roughly 6 wins in 10 similar games—not a certainty.</p>
+      <p>Open a match for recent results, possible scores, and market comparisons. Predictions use past match results; injuries and lineups are not included.</p>
+        </div>
   </details>
 
-  <aside class="track-record-link"><div><p class="eyebrow">CHECK THE EVIDENCE</p><h2>How does the model measure up?</h2><p>See predictions recorded before kickoff, measured against the final result.</p></div><a class="button-link" href="/performance">Explore performance <span aria-hidden="true">↗</span></a></aside>
+  <aside class="track-record-link"><div><p class="eyebrow">CHECK THE EVIDENCE</p><h2>How often are we right?</h2><p>Check past predictions against real results.</p></div><a class="button-link" href="/performance">Explore performance <span aria-hidden="true">↗</span></a></aside>
 </main>
 
 <script src="app.js"></script>

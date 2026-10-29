@@ -199,3 +199,21 @@ test('pages provide skip navigation and a single labelled main destination', () 
   assert.match(html, /<label[^>]*for="search-input"/);
   assert.match(html, /<label[^>]*for="league-select"/);
 });
+
+test('simple outcome summary handles draws, ties, and untrusted team names', () => {
+  const h = harness(async () => response({}));
+  assert.equal(h.run("outcomeSummary({home_pct:35,draw_pct:35,away_pct:30})"), 'No single favorite');
+  assert.match(h.run("outcomeSummary({home_pct:20,draw_pct:50,away_pct:30})"), /Draw \(tie\)/);
+  assert.match(h.run("outcomeSummary({home_team:'<b>X</b>',home_pct:50,draw_pct:20,away_pct:30})"), /&lt;b&gt;/);
+});
+
+test('fixture cards keep probabilities but defer technical detail', () => {
+  const h = harness(async () => response({}));
+  const html = h.run(`buildCard({home_team:'Home',away_team:'Away',league:'premier_league',
+    utc_date:'2099-01-01',home_pct:45,draw_pct:30,away_pct:25,home_rating_known:true,
+    away_rating_known:true,market:null},0).innerHTML`);
+  assert.match(html,/45%/);
+  assert.match(html,/Draw/);
+  assert.doesNotMatch(html,/Model xG|Elo|market-row/);
+  assert.match(html,/match-title-link/);
+});
