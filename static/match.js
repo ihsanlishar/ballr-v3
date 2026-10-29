@@ -83,7 +83,6 @@ function scoreHeatmap(p) {
 }
 
 function render(p) {
-  const detailsOpen = document.getElementById('match-details')?.open || false;
   const scores = p.top_scorelines.map((score) => `
     <div class="score-pick"><b>${score.home_goals}–${score.away_goals}</b><span>${score.probability.toFixed(1)}%</span></div>`).join('');
   const uncertainty = !p.home_rating_known || !p.away_rating_known
@@ -107,7 +106,7 @@ function render(p) {
       </div>
     </section>
 
-    <details class="match-details" id="match-details" ${detailsOpen ? 'open' : ''}><summary>Explore scores, recent results &amp; market odds</summary>
+    <div class="match-analysis" id="match-details">
     ${marketPanel(p)}
 
     <section class="detail-grid">
@@ -120,7 +119,7 @@ function render(p) {
       <div><span>Team strength (Elo)</span><b>${p.home_rating} <i>–</i> ${p.away_rating}</b></div>
       <div class="likely-scores"><span>Likeliest scores</span><div>${scores}</div></div>
     </section>
-    ${scoreHeatmap(p)}</details>`;
+    ${scoreHeatmap(p)}</div>`;
 }
 
 async function init() {

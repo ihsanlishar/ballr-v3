@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="pitch-backdrop" aria-hidden="true"><span></span></div>
 <a class="skip-link" href="#main-content">Skip to content</a>
 <header class="site-header"><div class="site-header-inner">
 <a class="wordmark" href="/" aria-label="Ballr home"><img class="brand-logo" src="/logo.png" width="56" height="56" alt="">Ballr<span class="wordmark-note">FOOTBALL ANALYTICS</span></a>
@@ -16,8 +17,8 @@
 <main class="app performance-page" id="main-content" tabindex="-1">
 <header class="masthead">
 <a class="back-link" href="/">← All fixtures</a>
-<p class="eyebrow">ACCOUNTABILITY, NOT HYPE</p><h1>How often are we right?</h1>
-<p class="subtitle">Predictions saved before kickoff. Results measured afterward.</p>
+<h1>Performance</h1>
+
 <label class="control"><span>League</span><select id="performance-league">
 <option value="premier_league">Premier League</option><option value="la_liga">La Liga</option>
 <option value="champions_league">Champions League</option></select></label>
@@ -45,5 +46,6 @@
 </div></details>
 </main>
 <script src="performance.js"></script>
-<footer class="site-footer"><span>Ballr · Football, in perspective.</span><span>Probabilities, not promises. Not betting advice.</span></footer>
+<footer class="site-footer"><span>Ballr</span><button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">Pause background</button><span>Probabilities, not promises. Not betting advice.</span></footer>
+<script src="/motion.js"></script>
 </body></html>

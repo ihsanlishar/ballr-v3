@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="pitch-backdrop" aria-hidden="true"><span></span></div>
 <a class="skip-link" href="#main-content">Skip to content</a>
 <header class="site-header"><div class="site-header-inner">
 <a class="wordmark" href="/" aria-label="Ballr home"><img class="brand-logo" src="/logo.png" width="56" height="56" alt="">Ballr<span class="wordmark-note">FOOTBALL ANALYTICS</span></a>
@@ -17,14 +18,8 @@
 </div></header>
 
 <main class="app" id="main-content" tabindex="-1">
-  <header class="masthead">
-    <p class="eyebrow">BALLR / MATCHDAY INTELLIGENCE</p>
-    <h1>Who’s likely to win?</h1>
-    <p class="subtitle">Pick a league. Find a match. See the chances.</p>
-    <div class="intro-note"><span class="intro-rule" aria-hidden="true"></span>Predictions, not guarantees. The first team plays at home.</div>
-  </header>
   <section class="fixture-section" aria-labelledby="fixtures-title">
-    <div class="fixtures-heading"><h2 id="fixtures-title">Upcoming fixtures <span class="count-badge" id="stat-tracked">—</span></h2><span class="timezone-note">Kickoff times in your local timezone</span></div>
+    <div class="fixtures-heading"><h1 id="fixtures-title">Fixtures <span class="count-badge" id="stat-tracked">—</span></h1><span class="timezone-note">Kickoff times in your local timezone</span></div>
     <div class="filter-bar">
       <label class="control" for="league-select"><span>Competition</span><select id="league-select"></select></label>
       <label class="control search-control" for="search-input"><span>Find a team</span><input type="text" id="search-input" placeholder="Search by team name" autocomplete="off"></label>
@@ -44,10 +39,11 @@
         </div>
   </details>
 
-  <aside class="track-record-link"><div><p class="eyebrow">CHECK THE EVIDENCE</p><h2>How often are we right?</h2><p>Check past predictions against real results.</p></div><a class="button-link" href="/performance">Explore performance <span aria-hidden="true">↗</span></a></aside>
+  <aside class="track-record-link"><div><h2>How often are we right?</h2><p>Check past predictions against real results.</p></div><a class="button-link" href="/performance">Explore performance <span aria-hidden="true">↗</span></a></aside>
 </main>
 
 <script src="app.js"></script>
-<footer class="site-footer"><span>Ballr · Football, in perspective.</span><span>Probabilities, not promises. Not betting advice.</span></footer>
+<footer class="site-footer"><span>Ballr</span><button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">Pause background</button><span>Probabilities, not promises. Not betting advice.</span></footer>
+<script src="/motion.js"></script>
 </body>
 </html>
